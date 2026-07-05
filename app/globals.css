@@ -1,26 +1,52 @@
 @import "tailwindcss";
 
+/* Blush editorial palette — light mode only */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #fff8f6;
+  --ink: #1c1917;
+  --accent: #e11d48;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-bg: var(--bg);
+  --color-ink: var(--ink);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-instrument-sans);
+  --font-serif: var(--font-instrument-serif);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-instrument-sans), sans-serif;
+}
+
+/* Song page full-player seek bar (Step 8) */
+.song-seek {
+  accent-color: var(--accent);
+  height: 6px;
+  cursor: pointer;
+}
+
+/* Processing waveform (Step 6 wait state) */
+@keyframes waveform-bounce {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.waveform-bar {
+  animation: waveform-bounce 1.2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .waveform-bar {
+    animation: none;
+    transform: scaleY(0.6);
+  }
 }

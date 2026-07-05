@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SongStatus {
+  generating
+  preview
+  paid
+  done
+  failed
+}
+
+model Song {
+  id              String     @id @default(cuid())
+  email           String? // nullable — row created at generation start, email captured at checkout
+  stripeEmail     String? // set by webhook if Stripe checkout email differs from in-app email (decision #13)
+  recipientName   String
+  occasion        String
+  promptInputs    Json // answers to guided prompts
+  styleInputs     Json // genre, mood, tempo
+  lyrics          String
+  sunoTaskId      String? // Suno generation task id — polled until tracks are ready
+  tracks          Json       @default("[]") // array of { sunoTrackId, audioUrl, genre, kind, unlocked }
+  selectedTrackId String? // the chosen song; base = 1 track unlocked
+  status          SongStatus @default(generating)
+  giftCredits     Int        @default(1) // free credit included with every song
+  upsells         Json       @default("{}") // which upsells were purchased
+  amountPaid      Int? // cents, set after payment
+  stripeSessionId String?
+  createdAt       DateTime   @default(now())
+
+  gifts Gift[]
+
+  @@map("songs")
+}
+
+model Gift {
+  id              String    @id @default(cuid()) // used in gift page URL /gift/[giftId]
+  songId          String
+  recipientEmail  String? // nullable — creator may share link manually instead
+  senderName      String // shown on the reveal page + delivery email ("{sender} made you a song")
+  personalMessage String
+  accessCode      String // 4-digit code, unique per gift
+  sentAt          DateTime?
+  createdAt       DateTime  @default(now())
+
+  song Song @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  @@map("gifts")
+}
+
+// Processed Stripe webhook events — insert-first guard makes the webhook
+// idempotent on replay (unique id violation = already handled).
+model StripeEvent {
+  id        String   @id // Stripe event id (evt_...)
+  createdAt DateTime @default(now())
+
+  @@map("stripe_events")
+}
+
+model LoginCode {
+  id        String   @id @default(cuid())
+  email     String
+  codeHash  String // 6-digit code, hashed — never stored plain
+  expiresAt DateTime // 10 minutes
+  attempts  Int      @default(0) // max 5, then code dead
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@map("login_codes")
+}
