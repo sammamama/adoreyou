@@ -10,7 +10,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useSyncExternalStore } from 'react';
-import GiftModal, { CopyButton } from '@/components/GiftModal';
+import GiftModal, { GiftShareBox } from '@/components/GiftModal';
 import SongPlayer from '@/components/SongPlayer';
 import Button from '@/components/ui/Button';
 import { getOccasion } from '@/lib/occasions';
@@ -270,38 +270,15 @@ function SongCard({
 
           {song.gifts.length > 0 && (
             <ul className="mt-5 space-y-3">
-              {song.gifts.map((gift) => {
-                const giftUrl = `${origin}${gift.link}`;
-                return (
-                  <li
-                    key={gift.id}
-                    className="rounded-xl border border-ink/10 bg-bg p-4"
-                  >
-                    {gift.recipientEmail && (
-                      <p className="mb-2 text-xs text-ink/50">
-                        Sent to {gift.recipientEmail}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-3">
-                      <a
-                        href={gift.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="min-w-0 flex-1 truncate font-mono text-sm text-accent underline underline-offset-4"
-                      >
-                        {giftUrl}
-                      </a>
-                      <CopyButton value={giftUrl} label="gift link" />
-                    </div>
-                    <div className="mt-2 flex items-center gap-3">
-                      <span className="flex-1 font-mono text-lg tracking-[0.35em]">
-                        {gift.accessCode}
-                      </span>
-                      <CopyButton value={gift.accessCode} label="access code" />
-                    </div>
-                  </li>
-                );
-              })}
+              {song.gifts.map((gift) => (
+                <li key={gift.id}>
+                  <GiftShareBox
+                    giftUrl={`${origin}${gift.link}`}
+                    accessCode={gift.accessCode}
+                    sentTo={gift.recipientEmail}
+                  />
+                </li>
+              ))}
             </ul>
           )}
         </div>

@@ -57,6 +57,10 @@ export const OCCASIONS: Occasion[] = [
       accent: '#F59E0B',
     },
     defaultMood: 'joyful',
+    videoUrl:
+      'https://d8j0ntlcm91z4.cloudfront.net/user_2wz19UwQVw85l2M9dxCWfoUPw1S/hf_20260708_131838_751e9bb9-f878-444b-a6d8-450bce199326.mp4',
+    posterUrl:
+      'https://d8j0ntlcm91z4.cloudfront.net/user_2wz19UwQVw85l2M9dxCWfoUPw1S/hf_20260708_131745_b282f608-64db-460b-bce0-632257c64aa0_min.webp',
   },
   {
     slug: 'wedding',
@@ -68,6 +72,10 @@ export const OCCASIONS: Occasion[] = [
       accent: '#E11D48',
     },
     defaultMood: 'romantic',
+    videoUrl:
+      'https://d8j0ntlcm91z4.cloudfront.net/user_2wz19UwQVw85l2M9dxCWfoUPw1S/hf_20260708_132146_86d966fc-25ab-49f1-aff4-8eeb0240a6c4.mp4',
+    posterUrl:
+      'https://d8j0ntlcm91z4.cloudfront.net/user_2wz19UwQVw85l2M9dxCWfoUPw1S/hf_20260708_132108_a1a32918-f7ca-4e2f-a1d5-c182dae155f7_min.webp',
   },
   {
     slug: 'anniversary',
@@ -79,6 +87,10 @@ export const OCCASIONS: Occasion[] = [
       accent: '#BE123C',
     },
     defaultMood: 'nostalgic',
+    videoUrl:
+      'https://d8j0ntlcm91z4.cloudfront.net/user_2wz19UwQVw85l2M9dxCWfoUPw1S/hf_20260708_132403_d60ea5d7-0302-4361-bad0-f5b0eb55afd2.mp4',
+    posterUrl:
+      'https://d8j0ntlcm91z4.cloudfront.net/user_2wz19UwQVw85l2M9dxCWfoUPw1S/hf_20260708_132316_04710536-dec1-42f6-9361-b008921abb93_min.webp',
   },
   {
     slug: 'fathers-day',
@@ -90,6 +102,10 @@ export const OCCASIONS: Occasion[] = [
       accent: '#126BAB',
     },
     defaultMood: 'warm',
+    videoUrl:
+      'https://d8j0ntlcm91z4.cloudfront.net/user_2wz19UwQVw85l2M9dxCWfoUPw1S/hf_20260708_132608_f56478e4-b64c-47e0-a75e-7ca8779a6a05.mp4',
+    posterUrl:
+      'https://d8j0ntlcm91z4.cloudfront.net/user_2wz19UwQVw85l2M9dxCWfoUPw1S/hf_20260708_132530_aab8dd39-432c-4708-8f73-28d6d32c21e1_min.webp',
   },
   {
     slug: 'mothers-day',
@@ -101,6 +117,10 @@ export const OCCASIONS: Occasion[] = [
       accent: '#DB2777',
     },
     defaultMood: 'tender',
+    videoUrl:
+      'https://d8j0ntlcm91z4.cloudfront.net/user_2wz19UwQVw85l2M9dxCWfoUPw1S/hf_20260708_130757_ae67939d-f1ff-4cba-a16f-136f3db7aaa3.mp4',
+    posterUrl:
+      'https://d8j0ntlcm91z4.cloudfront.net/user_2wz19UwQVw85l2M9dxCWfoUPw1S/hf_20260708_130549_76639eb7-c061-4ba8-9a29-cfead752d842_min.webp',
   },
   {
     slug: 'graduation',
@@ -112,6 +132,10 @@ export const OCCASIONS: Occasion[] = [
       accent: '#D97706',
     },
     defaultMood: 'triumphant',
+    videoUrl:
+      'https://d8j0ntlcm91z4.cloudfront.net/user_2wz19UwQVw85l2M9dxCWfoUPw1S/hf_20260708_135450_45ea2740-cd16-42a2-b999-d065b00ef95a.mp4',
+    posterUrl:
+      'https://d8j0ntlcm91z4.cloudfront.net/user_2wz19UwQVw85l2M9dxCWfoUPw1S/hf_20260708_135400_2e6cf29b-d82c-49ee-b3c8-eb29de399511_min.webp',
   },
   {
     slug: 'memorial',
@@ -123,6 +147,10 @@ export const OCCASIONS: Occasion[] = [
       accent: '#64748B',
     },
     defaultMood: 'bittersweet',
+    videoUrl:
+      'https://d8j0ntlcm91z4.cloudfront.net/user_2wz19UwQVw85l2M9dxCWfoUPw1S/hf_20260708_133122_65481498-6c8c-49bb-9a6a-7881aec81e8e.mp4',
+    posterUrl:
+      'https://d8j0ntlcm91z4.cloudfront.net/user_2wz19UwQVw85l2M9dxCWfoUPw1S/hf_20260708_133043_8f1042b2-e1df-460f-848b-627607e7fa72_min.webp',
   },
   {
     slug: 'friendship',
@@ -134,6 +162,10 @@ export const OCCASIONS: Occasion[] = [
       accent: '#EA580C',
     },
     defaultMood: 'playful',
+    videoUrl:
+      'https://d8j0ntlcm91z4.cloudfront.net/user_2wz19UwQVw85l2M9dxCWfoUPw1S/hf_20260708_133419_3ea4dbaf-56a9-46b9-a161-88f7eb37d85d.mp4',
+    posterUrl:
+      'https://d8j0ntlcm91z4.cloudfront.net/user_2wz19UwQVw85l2M9dxCWfoUPw1S/hf_20260708_133338_84837369-8ca7-4d6d-bf00-709f15418ad7_min.webp',
   },
   {
     slug: 'thank-you',
@@ -145,6 +177,10 @@ export const OCCASIONS: Occasion[] = [
       accent: '#0D9488',
     },
     defaultMood: 'heartfelt',
+    videoUrl:
+      'https://d8j0ntlcm91z4.cloudfront.net/user_2wz19UwQVw85l2M9dxCWfoUPw1S/hf_20260708_133648_590f12b2-5750-437c-8005-c38939d47d61.mp4',
+    posterUrl:
+      'https://d8j0ntlcm91z4.cloudfront.net/user_2wz19UwQVw85l2M9dxCWfoUPw1S/hf_20260708_133605_b37ab580-6142-4f71-8afe-e529c9960719_min.webp',
   },
 ];
 

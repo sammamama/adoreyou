@@ -10,9 +10,14 @@ import type { Occasion } from '@/types';
 // mobile / prefers-reduced-motion / no WebGL.
 let webglSupport: boolean | null = null;
 
-function checkMeshEligible(): boolean {
+function checkMotionEligible(): boolean {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
   if (window.matchMedia('(hover: none)').matches) return false; // mobile
+  return true;
+}
+
+function checkMeshEligible(): boolean {
+  if (!checkMotionEligible()) return false;
   if (webglSupport === null) {
     const canvas = document.createElement('canvas');
     webglSupport = !!(
@@ -25,12 +30,15 @@ function checkMeshEligible(): boolean {
 export default function OccasionCard({ occasion }: { occasion: Occasion }) {
   const { slug, name, description, theme } = occasion;
   const ref = useRef<HTMLAnchorElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [meshEligible, setMeshEligible] = useState(false);
+  const [videoEligible, setVideoEligible] = useState(false);
   const [inView, setInView] = useState(false);
   const [active, setActive] = useState(false);
 
   useEffect(() => {
     setMeshEligible(checkMeshEligible());
+    setVideoEligible(checkMotionEligible());
     const el = ref.current;
     if (!el) return;
     const observer = new IntersectionObserver(
@@ -40,6 +48,14 @@ export default function OccasionCard({ occasion }: { occasion: Occasion }) {
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // Video downloads nothing until in view (preload="none"), pauses offscreen
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (inView) video.play().catch(() => {});
+    else video.pause();
+  }, [inView, videoEligible]);
 
   const [c0, c1, c2, c3] = theme.colors;
   const fallbackGradient = {
@@ -58,7 +74,7 @@ export default function OccasionCard({ occasion }: { occasion: Occasion }) {
       onBlur={() => setActive(false)}
     >
       <div aria-hidden className="absolute inset-0" style={fallbackGradient} />
-      {meshEligible && inView && (
+      {!occasion.videoUrl && meshEligible && inView && (
         <MeshGradient
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
           colors={theme.colors}
@@ -69,15 +85,49 @@ export default function OccasionCard({ occasion }: { occasion: Occasion }) {
           speed={active ? 1 : 0}
         />
       )}
-      <div className="relative m-3 flex min-h-44 flex-col justify-end rounded-3xl border border-white/15 bg-white/10 p-6 backdrop-blur-xl">
-        <h3 className="font-serif text-3xl text-white">{name}</h3>
-        <p className="mt-1.5 text-sm leading-relaxed text-white/80">
-          {description}
-        </p>
-        <span className="mt-4 text-sm font-medium text-white/90 transition-transform duration-300 group-hover:translate-x-1">
-          Create their song &rarr;
-        </span>
-      </div>
+      {occasion.videoUrl ? (
+        <div className="relative flex flex-col p-3">
+          {videoEligible ? (
+            <video
+              ref={videoRef}
+              src={occasion.videoUrl}
+              poster={occasion.posterUrl}
+              muted
+              loop
+              playsInline
+              preload="none"
+              className="aspect-square w-full rounded-lg object-cover"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={occasion.posterUrl}
+              alt=""
+              loading="lazy"
+              className="aspect-square w-full rounded-lg object-cover"
+            />
+          )}
+          <div className="flex flex-col p-4 pb-3">
+            <h3 className="font-serif text-3xl text-white">{name}</h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-white/80">
+              {description}
+            </p>
+            <span className="mt-4 text-sm font-medium text-white/90 transition-transform duration-300 group-hover:translate-x-1">
+              Create their song &rarr;
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="relative m-3 flex min-h-44 flex-col justify-end rounded-3xl border border-white/15 bg-white/10 p-6 backdrop-blur-xl">
+          <h3 className="font-serif text-3xl text-white">{name}</h3>
+          <p className="mt-1.5 text-sm leading-relaxed text-white/80">
+            {description}
+          </p>
+          <span className="mt-4 text-sm font-medium text-white/90 transition-transform duration-300 group-hover:translate-x-1">
+            Create their song &rarr;
+          </span>
+        </div>
+      )}
     </Link>
   );
 }

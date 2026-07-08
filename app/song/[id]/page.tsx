@@ -13,7 +13,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState } from 'react';
-import GiftModal, { CopyButton } from '@/components/GiftModal';
+import GiftModal, { GiftShareBox } from '@/components/GiftModal';
 import ProcessingView from '@/components/ProcessingView';
 import SongPlayer from '@/components/SongPlayer';
 import Button from '@/components/ui/Button';
@@ -265,6 +265,7 @@ function SongPageInner() {
   const [song, setSong] = useState<SongData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [giftOpen, setGiftOpen] = useState(false);
+  const [buyPacksOpen, setBuyPacksOpen] = useState(false);
 
   // One-shot refetch after a gift is created — picks up the new gift row and
   // the decremented credit count.
@@ -530,9 +531,15 @@ function SongPageInner() {
                         Wrap it in a personal message and its own reveal page —
                         they enter a 4-digit code and the song plays.
                       </p>
-                      <div className="mt-4 flex items-center gap-4">
+                      <div className="mt-4 flex flex-wrap items-center gap-4">
                         <Button onClick={() => setGiftOpen(true)}>
                           Gift this song
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          onClick={() => setBuyPacksOpen(true)}
+                        >
+                          Buy more gifts
                         </Button>
                         <p className="text-sm text-ink/50">
                           {song.giftCredits ?? 0} gift{' '}
@@ -547,41 +554,15 @@ function SongPageInner() {
                             Gifts you&rsquo;ve sent
                           </h3>
                           <ul className="mt-3 space-y-3">
-                            {song.gifts!.map((gift) => {
-                              const giftUrl = `${window.location.origin}${gift.link}`;
-                              return (
-                                <li
-                                  key={gift.id}
-                                  className="rounded-xl border border-ink/10 bg-bg p-4"
-                                >
-                                  {gift.recipientEmail && (
-                                    <p className="mb-2 text-xs text-ink/50">
-                                      Sent to {gift.recipientEmail}
-                                    </p>
-                                  )}
-                                  <div className="flex items-center gap-3">
-                                    <a
-                                      href={gift.link}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="min-w-0 flex-1 truncate font-mono text-sm text-accent underline underline-offset-4"
-                                    >
-                                      {giftUrl}
-                                    </a>
-                                    <CopyButton value={giftUrl} label="gift link" />
-                                  </div>
-                                  <div className="mt-2 flex items-center gap-3">
-                                    <span className="flex-1 font-mono text-lg tracking-[0.35em]">
-                                      {gift.accessCode}
-                                    </span>
-                                    <CopyButton
-                                      value={gift.accessCode}
-                                      label="access code"
-                                    />
-                                  </div>
-                                </li>
-                              );
-                            })}
+                            {song.gifts!.map((gift) => (
+                              <li key={gift.id}>
+                                <GiftShareBox
+                                  giftUrl={`${window.location.origin}${gift.link}`}
+                                  accessCode={gift.accessCode}
+                                  sentTo={gift.recipientEmail}
+                                />
+                              </li>
+                            ))}
                           </ul>
                         </div>
                       )}
@@ -592,8 +573,12 @@ function SongPageInner() {
                     songId={song.id}
                     recipientName={song.recipientName}
                     giftCredits={song.giftCredits ?? 0}
-                    open={giftOpen}
-                    onClose={() => setGiftOpen(false)}
+                    open={giftOpen || buyPacksOpen}
+                    showPacks={buyPacksOpen}
+                    onClose={() => {
+                      setGiftOpen(false);
+                      setBuyPacksOpen(false);
+                    }}
                     onCreated={() => void refreshSong()}
                   />
                 </>

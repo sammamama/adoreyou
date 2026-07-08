@@ -64,6 +64,20 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
+      // DEV PAYMENT BYPASS — grant the pack's credits immediately (mirrors
+      // the webhook's gift-pack handler).
+      if (process.env.PAYMENT_BYPASS === '1') {
+        await prisma.song.update({
+          where: { id: song.id },
+          data: {
+            giftCredits: { increment: GIFT_PACKS[body.giftPack].credits },
+          },
+        });
+        return NextResponse.json({
+          data: { url: `/song/${song.id}` },
+          error: null,
+        });
+      }
       const session = await createGiftPackSession(song.id, body.giftPack);
       return NextResponse.json({ data: { url: session.url }, error: null });
     }
@@ -105,6 +119,31 @@ export async function POST(req: NextRequest) {
       keepEveryVersion: body.keepEveryVersion === true,
       ...(body.regenGenre ? { regenGenre: body.regenGenre } : {}),
     };
+
+    // DEV PAYMENT BYPASS — with PAYMENT_BYPASS=1, skip checkout and unlock the
+    // song immediately (mirrors the webhook's unlock). Remove this block or
+    // unset the flag to restore the real payment flow. Regen render is skipped.
+    if (process.env.PAYMENT_BYPASS === '1') {
+      const tracksUnlocked = tracks.map((t) => ({
+        ...t,
+        unlocked:
+          upsells.keepEveryVersion || t.sunoTrackId === selected.sunoTrackId,
+      }));
+      await prisma.song.update({
+        where: { id: song.id },
+        data: {
+          status: 'done',
+          email,
+          selectedTrackId: selected.sunoTrackId,
+          upsells: JSON.parse(JSON.stringify(upsells)),
+          tracks: JSON.parse(JSON.stringify(tracksUnlocked)),
+        },
+      });
+      return NextResponse.json({
+        data: { url: `/song/${song.id}` },
+        error: null,
+      });
+    }
 
     const session = await createSongCheckoutSession({
       songId: song.id,

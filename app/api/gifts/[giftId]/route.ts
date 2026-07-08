@@ -35,6 +35,9 @@ export async function GET(
 
   const gift = await prisma.gift.findUnique({
     where: { id: giftId },
+    // Never drag media bytes through entry/reveal queries — the mime fields
+    // double as presence flags, the media route serves the bytes.
+    omit: { photo: true, voiceNote: true },
     include: { song: true },
   });
   if (!gift) {
@@ -44,11 +47,17 @@ export async function GET(
     );
   }
 
+  // Scheduled gifts stay sealed until their moment — the entry screen shows
+  // a countdown instead of the code pad.
+  const locked = !!gift.deliverAt && gift.deliverAt.getTime() > Date.now();
+
   return NextResponse.json({
     data: {
       recipientName: gift.song.recipientName,
       occasion: gift.song.occasion,
       senderName: gift.senderName,
+      locked,
+      unwrapsAt: locked ? gift.deliverAt!.toISOString() : null,
     },
     error: null,
   });
@@ -93,12 +102,24 @@ export async function POST(
 
   const gift = await prisma.gift.findUnique({
     where: { id: giftId },
+    omit: { photo: true, voiceNote: true },
     include: { song: true },
   });
   if (!gift) {
     return NextResponse.json(
       { data: null, error: 'Gift not found.' },
       { status: 404 }
+    );
+  }
+
+  // Server-enforced countdown — the right code doesn't open a sealed gift.
+  if (gift.deliverAt && gift.deliverAt.getTime() > Date.now()) {
+    return NextResponse.json(
+      {
+        data: null,
+        error: 'This gift isn’t ready to unwrap yet — come back at its moment.',
+      },
+      { status: 403 }
     );
   }
 
@@ -133,6 +154,14 @@ export async function POST(
       audioUrl: track.audioUrl,
       // Gift-scoped download — the recipient never needs the songId.
       downloadUrl: `/api/gifts/${gift.id}/download?code=${code}`,
+      // Sender media — code-gated routes, only offered when present
+      // (mime set ⇔ bytes set).
+      photoUrl: gift.photoMime
+        ? `/api/gifts/${gift.id}/media/photo?code=${code}`
+        : null,
+      voiceNoteUrl: gift.voiceMime
+        ? `/api/gifts/${gift.id}/media/voice?code=${code}`
+        : null,
     },
     error: null,
   });

@@ -47,6 +47,11 @@ model Gift {
   personalMessage String
   accessCode      String // 4-digit code, unique per gift
   sentAt          DateTime?
+  deliverAt       DateTime? // scheduled unwrap moment — email sends + page unlocks then; null = immediate
+  photo           Bytes? // optional sender photo shown on the reveal page
+  photoMime       String?
+  voiceNote       Bytes? // optional short voice message from the sender
+  voiceMime       String?
   createdAt       DateTime  @default(now())
 
   song Song @relation(fields: [songId], references: [id], onDelete: Cascade)

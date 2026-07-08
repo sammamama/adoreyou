@@ -4,9 +4,10 @@ import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import CreateProgress from '@/components/CreateProgress';
 import LyricsCanvas from '@/components/LyricsCanvas';
-import StyleSelector from '@/components/StyleSelector';
 import Button from '@/components/ui/Button';
+import { normalizeSectionLabels } from '@/lib/lyrics';
 import { useDraftStore } from '@/lib/store';
 
 const ease = [0.22, 1, 0.36, 1] as const;
@@ -42,11 +43,16 @@ export default function LyricsPage() {
   });
 
   const draftReady =
-    occasion && recipientName && relationship && promptAnswers.length >= 4;
+    occasion &&
+    recipientName &&
+    relationship &&
+    promptAnswers.length >= 4 &&
+    genre;
 
   const callLyricsApi = async (revisionRequest?: string) => {
     setError(null);
     setLoading(revisionRequest ? 'revise' : 'generate');
+    const before = lyrics; // restored if a revision stream fails midway
     try {
       const res = await fetch('/api/lyrics', {
         method: 'POST',
@@ -54,6 +60,7 @@ export default function LyricsPage() {
         body: JSON.stringify({
           occasion,
           genre,
+          stream: true,
           promptInputs: {
             recipientName,
             pronunciation,
@@ -65,15 +72,32 @@ export default function LyricsPage() {
             : {}),
         }),
       });
-      const json = await res.json();
-      if (!res.ok || json.error) {
+
+      // Pre-stream failures (rate limit, validation) still arrive as JSON.
+      const contentType = res.headers.get('content-type') ?? '';
+      if (!res.ok || contentType.includes('application/json')) {
+        const json = await res.json();
         throw new Error(json.error ?? 'Something went wrong.');
       }
+
+      // Render the song as it's written.
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let text = '';
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        text += decoder.decode(value, { stream: true });
+        update({ lyrics: text });
+      }
+      text = text.trim();
+      if (!text) throw new Error('Something went wrong — try again.');
       update({
-        lyrics: json.data.lyrics,
+        lyrics: normalizeSectionLabels(text),
         ...(revisionRequest ? { revisionsUsed: revisionsUsed + 1 } : {}),
       });
     } catch (err) {
+      if (revisionRequest) update({ lyrics: before });
       setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
       setLoading(null);
@@ -89,6 +113,7 @@ export default function LyricsPage() {
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 pb-32">
+        <CreateProgress current="lyrics" />
         <motion.div {...entrance(0)}>
           <p className="text-sm text-ink/50">
             {recipientName ? `A song for ${recipientName}` : 'Your song'}
@@ -102,25 +127,21 @@ export default function LyricsPage() {
           (!draftReady ? (
             <motion.div {...entrance(0.07)} className="mt-10">
               <p className="text-ink/60">
-                We need their story first — start by picking an occasion and
-                answering a few prompts.
+                {genre
+                  ? 'We need their story first — start by picking an occasion and answering a few prompts.'
+                  : 'Pick how the song should sound first — genre, mood, tempo.'}
               </p>
-              <Button href="/#occasions" className="mt-6">
-                Start your song
+              <Button
+                href={genre ? '/#occasions' : '/create/style'}
+                className="mt-6"
+              >
+                {genre ? 'Start your song' : 'Choose the style'}
               </Button>
             </motion.div>
           ) : (
             <>
-              {/* Genre */}
-              <motion.section {...entrance(0.07)} className="mt-10">
-                <StyleSelector
-                  genre={genre}
-                  onSelect={(g) => update({ genre: g })}
-                />
-              </motion.section>
-
               {/* Lyrics */}
-              <motion.section {...entrance(0.14)} className="mt-10">
+              <motion.section {...entrance(0.07)} className="mt-10">
                 {lyrics ? (
                   <>
                     <p className="mb-3 text-sm text-ink/50">
@@ -138,15 +159,14 @@ export default function LyricsPage() {
                 ) : (
                   <div className="rounded-2xl border border-dashed border-ink/15 bg-white/50 p-8 text-center">
                     <p className="text-ink/60">
-                      {genre
-                        ? `Ready to write a ${genre.toLowerCase()} song from your memories.`
-                        : 'Pick a genre, then we’ll write the first draft.'}
+                      Ready to write a {genre.toLowerCase()} song from your
+                      memories.
                     </p>
                     <Button
-                      disabled={!genre || loading === 'generate'}
+                      disabled={loading === 'generate'}
                       onClick={() => callLyricsApi()}
                       className={`mt-5 ${
-                        genre && loading !== 'generate'
+                        loading !== 'generate'
                           ? ''
                           : 'cursor-not-allowed opacity-40'
                       }`}

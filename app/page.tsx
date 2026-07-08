@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
+import ExamplesSection from '@/components/ExamplesSection';
 import OccasionCard from '@/components/OccasionCard';
 import Button from '@/components/ui/Button';
 import { OCCASIONS } from '@/lib/occasions';
@@ -79,6 +80,9 @@ export default function Home() {
             ))}
           </div>
         </section>
+
+        {/* See examples */}
+        <ExamplesSection />
       </main>
 
       <footer className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-8 text-sm text-ink/40">

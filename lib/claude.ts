@@ -2,6 +2,7 @@
 // Keep all Claude prompts here — don't inline in route handlers.
 
 import Anthropic from '@anthropic-ai/sdk';
+import { normalizeSectionLabels } from '@/lib/lyrics';
 import { getOccasion, MASTER_PROMPTS } from '@/lib/occasions';
 import type { PromptInputs } from '@/types';
 
@@ -48,7 +49,7 @@ You will receive these fields (ordered by weight — higher = more influence on 
 
 ## Output Rules
 
-1. **Structure**: Verse 1 → Pre-Chorus (optional) → Chorus → Verse 2 → Chorus → Bridge → Final Chorus. Label each section.
+1. **Structure**: Verse 1 → Pre-Chorus (optional) → Chorus → Verse 2 → Chorus → Bridge → Final Chorus. Label each section in square brackets on its own line — [Verse 1], [Chorus], [Bridge]. Plain text only: no markdown, no asterisks, no bold.
 2. **Chorus**: Must be repeatable and singable. Under 6 lines. Contains the emotional thesis of the song.
 3. **Bridge**: Must shift perspective, time, or emotional register. This is the "turn" — surprise the listener.
 4. **Imagery over declaration**: Never write "I love you so much." Instead, show it: "I'd learn the whole train map again / just to get lost with you one more time."
@@ -126,11 +127,55 @@ async function callClaude(
     .trim();
 
   if (!text) throw new Error('Empty response from lyrics generation.');
-  return text;
+  return normalizeSectionLabels(text);
+}
+
+// Streaming variant — returns a byte stream of raw text deltas for the
+// lyrics page to render as they're written. The client normalizes section
+// labels once the stream completes (lib/lyrics.ts is shared).
+function streamClaude(
+  messages: Anthropic.Beta.BetaMessageParam[]
+): ReadableStream<Uint8Array> {
+  const stream = client.beta.messages.stream({
+    model: MODEL,
+    max_tokens: 16000,
+    betas: ['server-side-fallback-2026-06-01'],
+    fallbacks: [{ model: FALLBACK_MODEL }],
+    system: SYSTEM_PROMPT,
+    messages,
+  });
+
+  const encoder = new TextEncoder();
+  return new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const event of stream) {
+          if (
+            event.type === 'content_block_delta' &&
+            event.delta.type === 'text_delta'
+          ) {
+            controller.enqueue(encoder.encode(event.delta.text));
+          }
+        }
+        controller.close();
+      } catch (err) {
+        controller.error(err);
+      }
+    },
+    cancel() {
+      stream.abort();
+    },
+  });
 }
 
 export async function generateLyrics(input: LyricsInput): Promise<string> {
   return callClaude([{ role: 'user', content: buildUserPrompt(input) }]);
+}
+
+export function generateLyricsStream(
+  input: LyricsInput
+): ReadableStream<Uint8Array> {
+  return streamClaude([{ role: 'user', content: buildUserPrompt(input) }]);
 }
 
 // Length extension (Step 5 upsell) — adds verses without touching existing
@@ -152,12 +197,12 @@ export async function extendLyrics(
 
 // Revision — follow-up with current lyrics + revision request. Same system
 // prompt; Claude refines, doesn't regenerate from scratch.
-export async function reviseLyrics(
+function reviseMessages(
   input: LyricsInput,
   currentLyrics: string,
   revisionRequest: string
-): Promise<string> {
-  return callClaude([
+): Anthropic.Beta.BetaMessageParam[] {
+  return [
     { role: 'user', content: buildUserPrompt(input) },
     { role: 'assistant', content: currentLyrics },
     {
@@ -166,5 +211,21 @@ export async function reviseLyrics(
 
 Refine — don't regenerate from scratch. Keep every section the request doesn't touch. Respond with the full updated lyrics only.`,
     },
-  ]);
+  ];
+}
+
+export async function reviseLyrics(
+  input: LyricsInput,
+  currentLyrics: string,
+  revisionRequest: string
+): Promise<string> {
+  return callClaude(reviseMessages(input, currentLyrics, revisionRequest));
+}
+
+export function reviseLyricsStream(
+  input: LyricsInput,
+  currentLyrics: string,
+  revisionRequest: string
+): ReadableStream<Uint8Array> {
+  return streamClaude(reviseMessages(input, currentLyrics, revisionRequest));
 }

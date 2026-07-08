@@ -36,6 +36,8 @@ export interface Occasion {
   prompts: string[]; // curated guided questions (10 per occasion)
   theme: OccasionTheme; // gift reveal styling
   defaultMood: string;
+  videoUrl?: string; // landing card background video (replaces mesh gradient)
+  posterUrl?: string; // still frame shown before video loads / on mobile
 }
 
 // Stored in songs.upsells (Json column)
@@ -61,4 +63,5 @@ export interface StyleInputs {
   genre: string;
   mood?: string;
   tempo?: string;
+  voice?: string; // vocal preference, e.g. "female" / "male"
 }

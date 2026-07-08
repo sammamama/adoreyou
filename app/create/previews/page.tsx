@@ -8,6 +8,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import CreateProgress from '@/components/CreateProgress';
 import PreviewPicker, { type PreviewTrack } from '@/components/PreviewPicker';
 import ProcessingView from '@/components/ProcessingView';
 import Button from '@/components/ui/Button';
@@ -96,6 +97,7 @@ export default function PreviewsPage() {
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 pb-32">
+        <CreateProgress current="preview" />
         <motion.div {...entrance}>
           <p className="text-sm text-ink/50">
             {recipientName ? `A song for ${recipientName}` : 'Your song'}

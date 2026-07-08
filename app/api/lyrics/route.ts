@@ -6,7 +6,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   extendLyrics,
   generateLyrics,
+  generateLyricsStream,
   reviseLyrics,
+  reviseLyricsStream,
   type LyricsInput,
 } from '@/lib/claude';
 import { getOccasion } from '@/lib/occasions';
@@ -47,6 +49,19 @@ interface LyricsRequestBody {
   revisionsUsed?: number;
   // Length extension (Step 5) — doesn't count against the revision limit
   extendToVerses?: 3 | 4;
+  // Stream raw text chunks instead of a JSON payload (lyrics page)
+  stream?: boolean;
+}
+
+// Raw text chunks; errors before the first byte still surface as JSON — the
+// client branches on Content-Type.
+function streamResponse(stream: ReadableStream<Uint8Array>): Response {
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-cache',
+    },
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -124,6 +139,11 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
+      if (body.stream) {
+        return streamResponse(
+          reviseLyricsStream(input, body.currentLyrics!, body.revisionRequest!)
+        );
+      }
       const lyrics = await reviseLyrics(
         input,
         body.currentLyrics!,
@@ -132,6 +152,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ data: { lyrics }, error: null });
     }
 
+    if (body.stream) {
+      return streamResponse(generateLyricsStream(input));
+    }
     const lyrics = await generateLyrics(input);
     return NextResponse.json({ data: { lyrics }, error: null });
   } catch (err) {

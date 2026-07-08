@@ -21,6 +21,8 @@ type EntryData = {
   recipientName: string;
   occasion: string;
   senderName: string;
+  locked?: boolean;
+  unwrapsAt?: string | null;
 };
 
 type RevealData = EntryData & {
@@ -28,9 +30,11 @@ type RevealData = EntryData & {
   lyrics: string;
   audioUrl: string;
   downloadUrl: string;
+  photoUrl: string | null;
+  voiceNoteUrl: string | null;
 };
 
-type Stage = 'loading' | 'entry' | 'envelope' | 'revealed' | 'missing';
+type Stage = 'loading' | 'locked' | 'entry' | 'envelope' | 'revealed' | 'missing';
 
 type ParticleKind = 'confetti' | 'petals' | 'stars';
 
@@ -385,6 +389,57 @@ function PauseIcon() {
   );
 }
 
+// Sealed-gift countdown — ticks to the unwrap moment, then hands the page
+// over to the normal code entry.
+function Countdown({
+  until,
+  accent,
+  onDone,
+}: {
+  until: string;
+  accent: string;
+  onDone: () => void;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+  const target = new Date(until).getTime();
+  const done = target - now <= 0;
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (done) onDone();
+  }, [done, onDone]);
+
+  const total = Math.max(0, Math.floor((target - now) / 1000));
+  const units = [
+    { label: 'days', value: Math.floor(total / 86400) },
+    { label: 'hours', value: Math.floor((total % 86400) / 3600) },
+    { label: 'min', value: Math.floor((total % 3600) / 60) },
+    { label: 'sec', value: total % 60 },
+  ];
+
+  return (
+    <div className="flex items-start justify-center gap-4 sm:gap-6" role="timer">
+      {units.map((u) => (
+        <div key={u.label} className="w-16 text-center sm:w-20">
+          <div
+            className="font-serif text-4xl tabular-nums sm:text-5xl"
+            style={{ color: accent }}
+          >
+            {String(u.value).padStart(2, '0')}
+          </div>
+          <div className="mt-1 text-xs font-medium uppercase tracking-[0.2em] text-ink/40">
+            {u.label}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 type LyricLine = { text: string; isSection: boolean; singableIndex: number };
 
 // Section labels ([Chorus], [Verse 1]...) become quiet headers; everything
@@ -395,8 +450,11 @@ function parseLyrics(lyrics: string): LyricLine[] {
     .split('\n')
     .map((l) => l.trim())
     .filter(Boolean)
-    .map((text) => {
-      const isSection = /^\[.*\]$/.test(text);
+    .map((raw) => {
+      // Bracket form is canonical; **bold** matches older songs generated
+      // before labels were normalized server-side.
+      const isSection = /^\[.*\]$/.test(raw) || /^\*\*.+\*\*$/.test(raw);
+      const text = isSection ? raw.replace(/^[[*]+|[\]*]+$/g, '') : raw;
       if (!isSection) singableIndex++;
       return { text, isSection, singableIndex: isSection ? -1 : singableIndex };
     });
@@ -444,8 +502,9 @@ export default function GiftReveal({ giftId }: { giftId: string }) {
           setStage('missing');
           return;
         }
-        setEntry(json.data as EntryData);
-        setStage('entry');
+        const data = json.data as EntryData;
+        setEntry(data);
+        setStage(data.locked ? 'locked' : 'entry');
       } catch {
         if (!cancelled) setStage('missing');
       }
@@ -594,6 +653,38 @@ export default function GiftReveal({ giftId }: { giftId: string }) {
               We couldn&rsquo;t find a gift at this link — double-check it with
               the person who sent it to you.
             </p>
+          </div>
+        )}
+
+        {/* Sealed — scheduled gift, counting down to its moment */}
+        {stage === 'locked' && entry && entry.unwrapsAt && (
+          <div className="flex flex-1 flex-col items-center justify-center py-16 text-center">
+            <motion.p
+              {...entrance(0)}
+              className="text-sm font-medium uppercase tracking-[0.2em]"
+              style={{ color: accent }}
+            >
+              {occasion?.name ?? 'A gift'}
+            </motion.p>
+            <motion.h1
+              {...entrance(0.07)}
+              className="mt-4 font-serif text-4xl leading-tight sm:text-6xl"
+            >
+              {entry.senderName} has something{' '}
+              <span className="italic" style={{ color: accent }}>
+                waiting for you
+              </span>
+            </motion.h1>
+            <motion.p {...entrance(0.14)} className="mt-5 text-ink/60">
+              It unwraps at just the right moment.
+            </motion.p>
+            <motion.div {...entrance(0.21)} className="mt-10">
+              <Countdown
+                until={entry.unwrapsAt}
+                accent={accent}
+                onDone={() => setStage('entry')}
+              />
+            </motion.div>
           </div>
         )}
 
@@ -790,6 +881,32 @@ export default function GiftReveal({ giftId }: { giftId: string }) {
             >
               this song is yours
             </motion.p>
+
+            {/* Sender media — photo + voice note, before the song */}
+            {(reveal.photoUrl || reveal.voiceNoteUrl) && (
+              <motion.div {...entrance(0.45)} className="mx-auto mt-10 max-w-xl">
+                {reveal.photoUrl && (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={reveal.photoUrl}
+                    alt={`A photo from ${reveal.senderName}`}
+                    className="mx-auto max-h-80 w-auto -rotate-1 rounded-2xl border-8 border-white object-contain shadow-xl"
+                  />
+                )}
+                {reveal.voiceNoteUrl && (
+                  <div className="mt-6 rounded-2xl border border-ink/10 bg-white/80 p-4 backdrop-blur-sm">
+                    <p className="text-sm font-medium text-ink/60">
+                      A voice note from {reveal.senderName}
+                    </p>
+                    <audio
+                      src={reveal.voiceNoteUrl}
+                      controls
+                      className="mt-2 w-full"
+                    />
+                  </div>
+                )}
+              </motion.div>
+            )}
 
             {/* Player + visualizer */}
             <motion.div

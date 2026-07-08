@@ -28,7 +28,10 @@ export function buildStylePrompt(style: StyleInputs): string {
   const parts = [style.genre];
   if (style.mood) parts.push(style.mood);
   if (style.tempo) parts.push(`${style.tempo} tempo`);
-  parts.push('heartfelt vocals', 'polished production');
+  parts.push(
+    style.voice ? `heartfelt ${style.voice} vocals` : 'heartfelt vocals',
+    'polished production'
+  );
   return parts.join(', ');
 }
 
@@ -55,6 +58,9 @@ export async function startGeneration({
       prompt: lyrics,
       style: buildStylePrompt(style),
       title: title.slice(0, 80),
+      // Required by the API even though delivery is polling-based
+      // (decision #4) — the callback POST 404s harmlessly.
+      callBackUrl: `${(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '')}/api/webhooks/suno`,
     }),
   });
 

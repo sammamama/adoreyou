@@ -3,7 +3,8 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import CreateProgress from '@/components/CreateProgress';
 import Button from '@/components/ui/Button';
 import { useDraftStore } from '@/lib/store';
 import type { Occasion } from '@/types';
@@ -33,6 +34,31 @@ type Step = (typeof STEPS)[number];
 const inputClasses =
   'w-full rounded-xl border border-ink/15 bg-white px-4 py-3 text-base placeholder:text-ink/30 focus:outline-2 focus:outline-offset-0 focus:outline-accent';
 
+// Browser speech recognition (Web Speech API) — built-in transcription for
+// the memory prompts. Chrome/Edge/Safari; the mic button hides elsewhere.
+interface SpeechRecognitionLike {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  onresult:
+    | ((e: {
+        results: ArrayLike<ArrayLike<{ transcript: string }>>;
+      }) => void)
+    | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+}
+
+function speechRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
+  if (typeof window === 'undefined') return null;
+  const w = window as unknown as Record<string, unknown>;
+  return (w.SpeechRecognition ??
+    w.webkitSpeechRecognition ??
+    null) as (new () => SpeechRecognitionLike) | null;
+}
+
 export default function PromptForm({ occasion }: { occasion: Occasion }) {
   const router = useRouter();
   const reduced = useReducedMotion();
@@ -50,6 +76,49 @@ export default function PromptForm({ occasion }: { occasion: Occasion }) {
   const [step, setStep] = useState<Step>('name');
   const [openPrompt, setOpenPrompt] = useState<string | null>(null);
   const [draftAnswer, setDraftAnswer] = useState('');
+
+  // Dictation — speech results append after whatever was already typed.
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const dictationBaseRef = useRef('');
+  const speechSupported = hydrated && speechRecognitionCtor() !== null;
+
+  const stopDictation = () => {
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    setListening(false);
+  };
+
+  const startDictation = () => {
+    const Ctor = speechRecognitionCtor();
+    if (!Ctor) return;
+    const rec = new Ctor();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = navigator.language || 'en-US';
+    dictationBaseRef.current = draftAnswer.trim()
+      ? `${draftAnswer.trim()} `
+      : '';
+    rec.onresult = (e) => {
+      let transcript = '';
+      for (let i = 0; i < e.results.length; i++) {
+        transcript += e.results[i][0].transcript;
+      }
+      setDraftAnswer(dictationBaseRef.current + transcript);
+    };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    recognitionRef.current = rec;
+    rec.start();
+    setListening(true);
+  };
+
+  // Never leave the mic running after the answer box closes.
+  useEffect(() => {
+    if (openPrompt === null) stopDictation();
+    return stopDictation;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openPrompt]);
 
   useEffect(() => {
     setHydrated(true);
@@ -102,7 +171,7 @@ export default function PromptForm({ occasion }: { occasion: Occasion }) {
   const goNext = () => {
     if (step === 'name') setStep('relationship');
     else if (step === 'relationship') setStep('memories');
-    else router.push('/create/lyrics');
+    else router.push('/create/style');
   };
 
   const goBack = () => {
@@ -129,6 +198,7 @@ export default function PromptForm({ occasion }: { occasion: Occasion }) {
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 pb-32">
+        <CreateProgress current="story" />
         <motion.div {...entrance(0)}>
           <p className="text-sm text-ink/50">
             {occasion.name} song{' '}
@@ -262,21 +332,51 @@ export default function PromptForm({ occasion }: { occasion: Occasion }) {
                                 placeholder="Tell the story..."
                                 className={`mt-3 resize-none ${inputClasses}`}
                               />
-                              <div className="mt-3 flex justify-end gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => setOpenPrompt(null)}
-                                  className="rounded-full px-4 py-2 text-sm text-ink/60 hover:text-ink"
-                                >
-                                  Cancel
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => saveAnswer(prompt)}
-                                  className="rounded-full bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-rose-700"
-                                >
-                                  Done
-                                </button>
+                              <div className="mt-3 flex items-center justify-between gap-2">
+                                <div>
+                                  {speechSupported && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        listening
+                                          ? stopDictation()
+                                          : startDictation()
+                                      }
+                                      aria-pressed={listening}
+                                      className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition-colors duration-200 ${
+                                        listening
+                                          ? 'border-accent bg-accent/10 text-accent'
+                                          : 'border-ink/15 text-ink/60 hover:border-ink/40'
+                                      }`}
+                                    >
+                                      <svg
+                                        viewBox="0 0 24 24"
+                                        fill="currentColor"
+                                        className="h-4 w-4"
+                                        aria-hidden
+                                      >
+                                        <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z" />
+                                      </svg>
+                                      {listening ? 'Listening… tap to stop' : 'Speak it'}
+                                    </button>
+                                  )}
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setOpenPrompt(null)}
+                                    className="rounded-full px-4 py-2 text-sm text-ink/60 hover:text-ink"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => saveAnswer(prompt)}
+                                    className="rounded-full bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-rose-700"
+                                  >
+                                    Done
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           ) : (

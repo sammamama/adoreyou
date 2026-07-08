@@ -16,6 +16,9 @@ interface Draft {
   relationship: string;
   promptAnswers: PromptAnswer[];
   genre: string;
+  mood: string;
+  tempo: string;
+  voice: string;
   lyrics: string;
   revisionsUsed: number; // AI revisions spent (max 5) — direct edits are free
   verseCount: 2 | 3 | 4;
@@ -40,6 +43,9 @@ const emptyDraft: Draft = {
   relationship: '',
   promptAnswers: [],
   genre: '',
+  mood: '',
+  tempo: '',
+  voice: '',
   lyrics: '',
   revisionsUsed: 0,
   verseCount: 2,

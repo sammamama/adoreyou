@@ -8,6 +8,8 @@ import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import CreateProgress from '@/components/CreateProgress';
+import { LyricsView } from '@/components/LyricsCanvas';
 import Button from '@/components/ui/Button';
 import { useDraftStore } from '@/lib/store';
 
@@ -44,6 +46,9 @@ export default function LengthPage() {
   const relationship = useDraftStore((s) => s.relationship);
   const promptAnswers = useDraftStore((s) => s.promptAnswers);
   const genre = useDraftStore((s) => s.genre);
+  const mood = useDraftStore((s) => s.mood);
+  const tempo = useDraftStore((s) => s.tempo);
+  const voice = useDraftStore((s) => s.voice);
   const lyrics = useDraftStore((s) => s.lyrics);
   const verseCount = useDraftStore((s) => s.verseCount);
   const update = useDraftStore((s) => s.update);
@@ -121,7 +126,13 @@ export default function LengthPage() {
         body: JSON.stringify({
           occasion,
           promptInputs: requestBase.promptInputs,
-          styleInputs: { genre },
+          // Empty optionals stay out so the occasion's default mood applies.
+          styleInputs: {
+            genre,
+            ...(mood ? { mood: mood.toLowerCase() } : {}),
+            ...(tempo ? { tempo: tempo.toLowerCase() } : {}),
+            ...(voice ? { voice: voice.toLowerCase() } : {}),
+          },
           lyrics: finalLyrics,
           verseCount: verses,
         }),
@@ -158,6 +169,7 @@ export default function LengthPage() {
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 pb-32">
+        <CreateProgress current="length" />
         <motion.div {...entrance(0)}>
           <p className="text-sm text-ink/50">
             {recipientName ? `A song for ${recipientName}` : 'Your song'}
@@ -225,8 +237,8 @@ export default function LengthPage() {
                     Here&rsquo;s your extended song — a quick look before we
                     compose it.
                   </p>
-                  <div className="max-h-80 overflow-y-auto whitespace-pre-wrap rounded-2xl border border-ink/10 bg-white p-6 font-serif leading-relaxed">
-                    {extended.lyrics}
+                  <div className="max-h-80 overflow-y-auto rounded-2xl border border-ink/10 bg-white p-6">
+                    <LyricsView lyrics={extended.lyrics} />
                   </div>
                 </motion.section>
               )}
