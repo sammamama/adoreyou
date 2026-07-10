@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { isCodeFormat, validateAccessCode } from '@/lib/access-code';
+import { openObject } from '@/lib/storage';
 
 export async function GET(
   req: NextRequest,
@@ -40,18 +41,32 @@ export async function GET(
     );
   }
 
-  const bytes = kind === 'photo' ? gift.photo : gift.voiceNote;
+  const key = kind === 'photo' ? gift.photoKey : gift.voiceKey;
   const mime = kind === 'photo' ? gift.photoMime : gift.voiceMime;
-  if (!bytes || !mime) {
+  if (!key || !mime) {
     return NextResponse.json(
       { data: null, error: 'Not found.' },
       { status: 404 }
     );
   }
 
-  return new NextResponse(Buffer.from(bytes), {
+  let object;
+  try {
+    object = await openObject(key);
+  } catch (err) {
+    console.error(`gift media read failed for ${key}:`, err);
+    return NextResponse.json(
+      { data: null, error: 'Media unavailable — try again shortly.' },
+      { status: 502 }
+    );
+  }
+
+  return new NextResponse(object.stream, {
     headers: {
       'Content-Type': mime,
+      ...(object.contentLength
+        ? { 'Content-Length': String(object.contentLength) }
+        : {}),
       'Cache-Control': 'private, max-age=3600',
     },
   });

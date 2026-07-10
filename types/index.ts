@@ -8,6 +8,7 @@ export type TrackKind = 'original' | 'regen';
 export interface Track {
   sunoTrackId: string;
   audioUrl: string; // full audio — server-side only until paid
+  storageKey?: string; // S3 key once archived (Suno CDN expires ~1 week)
   genre: string;
   kind: TrackKind;
   unlocked: boolean;

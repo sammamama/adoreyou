@@ -25,7 +25,7 @@ model Song {
   styleInputs     Json // genre, mood, tempo
   lyrics          String
   sunoTaskId      String? // Suno generation task id — polled until tracks are ready
-  tracks          Json       @default("[]") // array of { sunoTrackId, audioUrl, genre, kind, unlocked }
+  tracks          Json       @default("[]") // array of { sunoTrackId, audioUrl, storageKey?, genre, kind, unlocked }
   selectedTrackId String? // the chosen song; base = 1 track unlocked
   status          SongStatus @default(generating)
   giftCredits     Int        @default(1) // free credit included with every song
@@ -48,9 +48,9 @@ model Gift {
   accessCode      String // 4-digit code, unique per gift
   sentAt          DateTime?
   deliverAt       DateTime? // scheduled unwrap moment — email sends + page unlocks then; null = immediate
-  photo           Bytes? // optional sender photo shown on the reveal page
+  photoKey        String? // S3 key — optional sender photo shown on the reveal page
   photoMime       String?
-  voiceNote       Bytes? // optional short voice message from the sender
+  voiceKey        String? // S3 key — optional short voice message from the sender
   voiceMime       String?
   createdAt       DateTime  @default(now())
 

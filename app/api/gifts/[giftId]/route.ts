@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { isCodeFormat, validateAccessCode } from '@/lib/access-code';
+import { trackPlaybackUrl } from '@/lib/storage';
 import type { Track } from '@/types';
 
 const MAX_FAILURES = 5;
@@ -35,9 +36,6 @@ export async function GET(
 
   const gift = await prisma.gift.findUnique({
     where: { id: giftId },
-    // Never drag media bytes through entry/reveal queries — the mime fields
-    // double as presence flags, the media route serves the bytes.
-    omit: { photo: true, voiceNote: true },
     include: { song: true },
   });
   if (!gift) {
@@ -102,7 +100,6 @@ export async function POST(
 
   const gift = await prisma.gift.findUnique({
     where: { id: giftId },
-    omit: { photo: true, voiceNote: true },
     include: { song: true },
   });
   if (!gift) {
@@ -151,11 +148,13 @@ export async function POST(
       senderName: gift.senderName,
       personalMessage: gift.personalMessage,
       lyrics: song.lyrics,
-      audioUrl: track.audioUrl,
+      // Signed storage URL once archived — Suno's CDN expires, gift pages
+      // get opened weeks later.
+      audioUrl: await trackPlaybackUrl(track),
       // Gift-scoped download — the recipient never needs the songId.
       downloadUrl: `/api/gifts/${gift.id}/download?code=${code}`,
       // Sender media — code-gated routes, only offered when present
-      // (mime set ⇔ bytes set).
+      // (mime set ⇔ key set).
       photoUrl: gift.photoMime
         ? `/api/gifts/${gift.id}/media/photo?code=${code}`
         : null,

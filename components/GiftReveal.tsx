@@ -11,9 +11,15 @@
 // as soft radial washes + particles, never a dark page.
 
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getOccasion } from '@/lib/occasions';
+
+// three/r3f are client-only and heavy — load only when a memorial gift needs them.
+const MemorialStars = dynamic(() => import('@/components/MemorialStars'), {
+  ssr: false,
+});
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -55,9 +61,55 @@ function particlePalette(slug: string): string[] {
 }
 
 // ---------------------------------------------------------------------------
-// Particles — one canvas, three behaviors. Confetti bursts then keeps a
-// gentle fall; petals drift and sway; stars (memorial) only float and
-// twinkle — no burst, somber by design.
+// Confetti — @hiseb/confetti (confetti.js): celebration burst, then a gentle
+// ambient fall. The library owns its canvas (fullscreen, auto-removed when
+// particles finish) and picks its own festive hues. Imported dynamically —
+// it touches `window` at module scope, which would crash SSR. Petals/stars
+// below keep the custom canvas (bespoke sway/twinkle it doesn't do).
+
+function ConfettiEffect({ burst }: { burst: boolean }) {
+  const reduced = useReducedMotion();
+
+  useEffect(() => {
+    if (reduced) return;
+    let cancelled = false;
+    let ambient: number | undefined;
+
+    void import('@hiseb/confetti').then(({ default: confetti }) => {
+      if (cancelled) return;
+
+      if (burst) {
+        confetti({
+          position: { x: window.innerWidth / 2, y: window.innerHeight * 0.3 },
+          count: 280,
+          velocity: 250,
+        });
+      }
+
+      // Ambient fall — small drops from random points along the top.
+      ambient = window.setInterval(() => {
+        confetti({
+          position: { x: Math.random() * window.innerWidth, y: -20 },
+          count: 6,
+          velocity: 50,
+          size: 0.9,
+          fade: true,
+        });
+      }, 400);
+    });
+
+    return () => {
+      cancelled = true;
+      if (ambient) window.clearInterval(ambient);
+    };
+  }, [burst, reduced]);
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Particles — petals on a custom canvas: burst on reveal, then drift and
+// sway down. (Memorial stars live in MemorialStars; confetti in ConfettiEffect.)
 
 type Particle = {
   x: number;
@@ -71,15 +123,7 @@ type Particle = {
   phase: number;
 };
 
-function Particles({
-  kind,
-  colors,
-  burst,
-}: {
-  kind: ParticleKind;
-  colors: string[];
-  burst: boolean;
-}) {
+function Particles({ colors, burst }: { colors: string[]; burst: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const reduced = useReducedMotion();
 
@@ -110,24 +154,19 @@ function Particles({
       x: Math.random() * width,
       y: fromTop ? -20 - Math.random() * height * 0.3 : Math.random() * height,
       vx: (Math.random() - 0.5) * 0.4,
-      vy:
-        kind === 'stars'
-          ? 0.08 + Math.random() * 0.15
-          : 0.6 + Math.random() * (kind === 'petals' ? 0.7 : 1.1),
+      vy: 0.6 + Math.random() * 0.7,
       rot: Math.random() * Math.PI * 2,
       vr: (Math.random() - 0.5) * 0.04,
-      size:
-        kind === 'stars' ? 1.5 + Math.random() * 2.5 : 7 + Math.random() * 8,
+      size: 7 + Math.random() * 8,
       color: pick(),
       phase: Math.random() * Math.PI * 2,
     });
 
-    // Ambient layer — stars get a sparse, slow field; the rest a light fall.
-    const ambientCount = kind === 'stars' ? 40 : 28;
-    for (let i = 0; i < ambientCount; i++) particles.push(ambient(false));
+    // Ambient layer — a light petal fall.
+    for (let i = 0; i < 28; i++) particles.push(ambient(false));
 
-    // Celebration burst from the upper center (skipped for memorial stars).
-    if (burst && kind !== 'stars') {
+    // Celebration burst from the upper center.
+    if (burst) {
       for (let i = 0; i < 140; i++) {
         const angle = Math.PI * (0.15 + Math.random() * 0.7); // fan downward-out
         const speed = 4 + Math.random() * 9;
@@ -154,13 +193,13 @@ function Particles({
       ctx.clearRect(0, 0, width, height);
 
       for (const p of particles) {
-        p.vy += kind === 'stars' ? 0 : 0.06 * dt; // gravity
-        p.vy = Math.min(p.vy, kind === 'petals' ? 1.6 : 3.2);
-        p.x += (p.vx + Math.sin(now / 900 + p.phase) * (kind === 'stars' ? 0.1 : 0.5)) * dt;
+        p.vy += 0.06 * dt; // gravity
+        p.vy = Math.min(p.vy, 1.6);
+        p.x += (p.vx + Math.sin(now / 900 + p.phase) * 0.5) * dt;
         p.y += p.vy * dt;
         p.rot += p.vr * dt;
 
-        // Recycle at the bottom; stars wrap around all edges.
+        // Recycle at the bottom; wrap the sides.
         if (p.y > height + 24) Object.assign(p, ambient(true));
         if (p.x < -24) p.x = width + 20;
         if (p.x > width + 24) p.x = -20;
@@ -168,26 +207,11 @@ function Particles({
         ctx.save();
         ctx.translate(p.x, p.y);
         ctx.fillStyle = p.color;
-
-        if (kind === 'stars') {
-          const twinkle = 0.25 + 0.55 * Math.abs(Math.sin(now / 1200 + p.phase));
-          ctx.globalAlpha = twinkle;
-          ctx.beginPath();
-          ctx.arc(0, 0, p.size, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (kind === 'petals') {
-          ctx.globalAlpha = 0.85;
-          ctx.rotate(p.rot);
-          ctx.beginPath();
-          ctx.ellipse(0, 0, p.size * 0.65, p.size * 0.35, 0, 0, Math.PI * 2);
-          ctx.fill();
-        } else {
-          ctx.globalAlpha = 0.9;
-          ctx.rotate(p.rot);
-          // scaleY by a sine fakes the 3D tumble of a confetto
-          ctx.scale(1, 0.35 + 0.65 * Math.abs(Math.sin(now / 250 + p.phase)));
-          ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
-        }
+        ctx.globalAlpha = 0.85;
+        ctx.rotate(p.rot);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, p.size * 0.65, p.size * 0.35, 0, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
       }
 
@@ -200,7 +224,7 @@ function Particles({
       window.removeEventListener('resize', resize);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind, burst, reduced, colors.join(',')]);
+  }, [burst, reduced, colors.join(',')]);
 
   if (reduced) return null;
   return (
@@ -221,11 +245,13 @@ function PinInput({
   disabled,
   failCount,
   onComplete,
+  dark,
 }: {
   accent: string;
   disabled: boolean;
   failCount: number;
   onComplete: (code: string) => void;
+  dark: boolean;
 }) {
   const [digits, setDigits] = useState(['', '', '', '']);
   const refs = useRef<(HTMLInputElement | null)[]>([]);
@@ -295,7 +321,7 @@ function PinInput({
           onKeyDown={(e) => handleKeyDown(i, e)}
           onFocus={(e) => e.target.select()}
           aria-label={`Access code digit ${i + 1}`}
-          className="h-20 w-16 rounded-2xl border-2 border-ink/15 bg-white text-center font-serif text-4xl outline-none transition-all duration-200 focus:scale-105 disabled:opacity-50 sm:h-24 sm:w-19 sm:text-5xl"
+          className={`h-20 w-16 rounded-2xl border-2 border-ink/15 text-center font-serif text-4xl outline-none transition-all duration-200 focus:scale-105 disabled:opacity-50 sm:h-24 sm:w-19 sm:text-5xl ${dark ? 'bg-white/10' : 'bg-white'}`}
           style={digit ? { borderColor: accent } : undefined}
           onFocusCapture={(e) => (e.target.style.borderColor = accent)}
           onBlurCapture={(e) => {
@@ -343,7 +369,7 @@ function Visualizer({ playing, accent }: { playing: boolean; accent: string }) {
   }, [playing, reduced]);
 
   return (
-    <div aria-hidden className="flex h-16 items-end justify-center gap-1">
+    <div aria-hidden className="flex h-10 items-end justify-center gap-1">
       {Array.from({ length: BAR_COUNT }).map((_, i) => (
         <div
           key={i}
@@ -607,8 +633,17 @@ export default function GiftReveal({ giftId }: { giftId: string }) {
   });
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden">
-      {/* Occasion wash — soft, light-mode only; saturation stays in moments */}
+    <div
+      className={`relative flex min-h-screen flex-col overflow-hidden ${somber ? 'bg-black' : ''}`}
+      // Memorial goes dark: overriding --ink flips every ink-derived utility
+      // (text-ink/60, border-ink/10...) to warm white for this subtree.
+      style={
+        somber
+          ? ({ '--ink': '#fafaf9', color: '#fafaf9' } as React.CSSProperties)
+          : undefined
+      }
+    >
+      {/* Occasion wash — soft; saturation stays in moments */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
@@ -617,10 +652,18 @@ export default function GiftReveal({ giftId }: { giftId: string }) {
         }}
       />
 
+      {/* Memorial starfield — behind every stage of the dark page */}
+      {kind === 'stars' && entry && !reduced && <MemorialStars />}
+
       {/* Particles: gentle ambience once inside, full burst on reveal */}
-      {(stage === 'revealed' || (stage === 'envelope' && opening)) && entry && (
-        <Particles kind={kind} colors={palette} burst={!somber} />
-      )}
+      {(stage === 'revealed' || (stage === 'envelope' && opening)) &&
+        entry &&
+        kind !== 'stars' &&
+        (kind === 'confetti' ? (
+          <ConfettiEffect burst={!somber} />
+        ) : (
+          <Particles colors={palette} burst={!somber} />
+        ))}
 
       {/* The song — mounted from the envelope on so tap-to-open can play it */}
       {reveal && (
@@ -635,7 +678,11 @@ export default function GiftReveal({ giftId }: { giftId: string }) {
         />
       )}
 
-      <main className="relative z-20 mx-auto flex w-full max-w-2xl flex-1 flex-col px-6 pb-20">
+      <main
+        className={`relative z-20 mx-auto flex w-full max-w-2xl flex-1 flex-col px-6 ${
+          stage === 'revealed' ? 'h-dvh overflow-hidden' : 'pb-20'
+        }`}
+      >
         {stage === 'loading' && (
           <div className="flex flex-1 items-center justify-center">
             <p className="font-serif text-2xl text-ink/40">
@@ -717,6 +764,7 @@ export default function GiftReveal({ giftId }: { giftId: string }) {
               <PinInput
                 key={failCount}
                 accent={accent}
+                dark={somber}
                 disabled={checking}
                 failCount={failCount}
                 onComplete={(code) => void submitCode(code)}
@@ -785,6 +833,11 @@ export default function GiftReveal({ giftId }: { giftId: string }) {
                     animate={opening && !reduced ? { y: -70 } : { y: 0 }}
                     transition={{ duration: 0.7, ease, delay: 0.45 }}
                     className="absolute inset-x-4 top-2 bottom-2 rounded-lg bg-white shadow-md"
+                    // The letter is white paper — its text stays dark even
+                    // when the memorial page flips --ink to white.
+                    style={
+                      { '--ink': '#1c1917', color: '#1c1917' } as React.CSSProperties
+                    }
                   >
                     <div className="flex h-full flex-col items-center justify-center gap-2 px-6">
                       <span className="font-serif text-lg italic text-ink/70">
@@ -837,9 +890,9 @@ export default function GiftReveal({ giftId }: { giftId: string }) {
           )}
         </AnimatePresence>
 
-        {/* Revealed */}
+        {/* Revealed — everything fits one viewport; only the lyrics box scrolls */}
         {stage === 'revealed' && reveal && (
-          <div className="pt-16 sm:pt-20">
+          <div className="flex min-h-0 flex-1 flex-col pt-6">
             <motion.p
               {...entrance(0)}
               className="text-center text-sm font-medium uppercase tracking-[0.2em]"
@@ -850,7 +903,7 @@ export default function GiftReveal({ giftId }: { giftId: string }) {
 
             {/* Recipient name — letter-by-letter */}
             <h1
-              className="mt-6 text-center font-serif text-6xl leading-none sm:text-7xl"
+              className="mt-3 text-center font-serif text-4xl leading-none sm:text-5xl"
               aria-label={reveal.recipientName}
             >
               {reveal.recipientName.split('').map((ch, i) => (
@@ -877,50 +930,67 @@ export default function GiftReveal({ giftId }: { giftId: string }) {
             </h1>
             <motion.p
               {...entrance(0.4)}
-              className="mt-4 text-center font-serif text-xl italic text-ink/60"
+              className="mt-1.5 text-center font-serif text-base italic text-ink/60"
             >
               this song is yours
             </motion.p>
 
             {/* Sender media — photo + voice note, before the song */}
             {(reveal.photoUrl || reveal.voiceNoteUrl) && (
-              <motion.div {...entrance(0.45)} className="mx-auto mt-10 max-w-xl">
+              <motion.div
+                {...entrance(0.45)}
+                className="mx-auto mt-3 flex w-full max-w-xl items-center justify-center gap-4"
+              >
                 {reveal.photoUrl && (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={reveal.photoUrl}
                     alt={`A photo from ${reveal.senderName}`}
-                    className="mx-auto max-h-80 w-auto -rotate-1 rounded-2xl border-8 border-white object-contain shadow-xl"
+                    className="max-h-20 w-auto -rotate-1 rounded-xl border-4 border-white object-contain shadow-lg"
                   />
                 )}
                 {reveal.voiceNoteUrl && (
-                  <div className="mt-6 rounded-2xl border border-ink/10 bg-white/80 p-4 backdrop-blur-sm">
-                    <p className="text-sm font-medium text-ink/60">
+                  <div className={`min-w-0 flex-1 rounded-2xl border border-ink/10 p-3 backdrop-blur-sm ${somber ? 'bg-white/5' : 'bg-white/80'}`}>
+                    <p className="text-xs font-medium text-ink/60">
                       A voice note from {reveal.senderName}
                     </p>
                     <audio
                       src={reveal.voiceNoteUrl}
                       controls
-                      className="mt-2 w-full"
+                      className="mt-1.5 h-9 w-full"
                     />
                   </div>
                 )}
               </motion.div>
             )}
 
-            {/* Player + visualizer */}
-            <motion.div
+            {/* Personal message — compact so everything fits one screen */}
+            <motion.blockquote
               {...entrance(0.5)}
-              className="mt-10 rounded-3xl border border-ink/10 bg-white/80 p-6 shadow-sm backdrop-blur-sm sm:p-8"
+              className="mx-auto mt-3 max-w-xl text-center"
+            >
+              <p className="font-serif text-base italic leading-relaxed sm:text-lg">
+                &ldquo;{reveal.personalMessage}&rdquo;{' '}
+                <span className="text-sm not-italic text-ink/50">
+                  — {reveal.senderName}
+                </span>
+              </p>
+            </motion.blockquote>
+
+            {/* Player + scroll-synced lyrics — the lyrics box takes the
+                remaining viewport and scrolls internally */}
+            <motion.div
+              {...entrance(0.55)}
+              className={`mt-4 flex min-h-0 flex-1 flex-col rounded-3xl border border-ink/10 p-5 shadow-sm backdrop-blur-sm sm:p-6 ${somber ? 'bg-white/5' : 'bg-white/80'}`}
             >
               <Visualizer playing={playing} accent={accent} />
 
-              <div className="mt-6 flex items-center gap-4">
+              <div className="mt-4 flex items-center gap-4">
                 <button
                   type="button"
                   onClick={togglePlay}
                   aria-label={playing ? 'Pause the song' : 'Play the song'}
-                  className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-white transition-transform duration-200 hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2"
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white transition-transform duration-200 hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2"
                   style={{ backgroundColor: accent, outlineColor: accent }}
                 >
                   {playing ? <PauseIcon /> : <PlayIcon />}
@@ -943,43 +1013,22 @@ export default function GiftReveal({ giftId }: { giftId: string }) {
                     <span>{formatTime(duration)}</span>
                   </div>
                 </div>
-              </div>
 
-              <div className="mt-5">
                 {/* Plain <a> — a Next Link would client-navigate/prefetch the
                     API download route instead of saving the file. */}
                 <a
                   href={reveal.downloadUrl}
-                  className="inline-flex h-13 w-full items-center justify-center gap-2 rounded-full border border-ink/15 px-7 text-base font-medium text-ink transition-colors duration-200 hover:border-ink/40 sm:w-auto"
+                  className="inline-flex shrink-0 items-center justify-center rounded-full border border-ink/15 px-4 py-2 text-sm font-medium text-ink transition-colors duration-200 hover:border-ink/40"
                 >
-                  Download the song
+                  Download
                 </a>
               </div>
-            </motion.div>
 
-            {/* Personal message */}
-            <motion.blockquote
-              {...entrance(0.6)}
-              className="mx-auto mt-12 max-w-xl text-center"
-            >
-              <p className="font-serif text-2xl italic leading-relaxed sm:text-3xl">
-                &ldquo;{reveal.personalMessage}&rdquo;
-              </p>
-              <footer className="mt-4 text-sm text-ink/50">
-                — {reveal.senderName}
-              </footer>
-            </motion.blockquote>
-
-            {/* Scroll-synced lyrics */}
-            <motion.section {...entrance(0.7)} className="mt-14">
-              <h2 className="text-center text-sm font-medium uppercase tracking-[0.2em] text-ink/40">
-                The lyrics
-              </h2>
               <div
                 ref={lyricsContainerRef}
-                className="relative mt-6 max-h-[55vh] overflow-y-auto rounded-3xl border border-ink/10 bg-white/60 px-6 py-10 backdrop-blur-sm sm:px-10"
+                className="relative mt-4 min-h-0 flex-1 overflow-y-auto border-t border-ink/10 px-2 pt-4"
               >
-                <div className="space-y-3 text-center">
+                <div className="space-y-2.5 text-center">
                   {lines.map((line, i) =>
                     line.isSection ? (
                       <p
@@ -987,7 +1036,7 @@ export default function GiftReveal({ giftId }: { giftId: string }) {
                         ref={(el) => {
                           lineRefs.current[i] = el;
                         }}
-                        className="pt-5 text-xs font-medium uppercase tracking-[0.2em] text-ink/30 first:pt-0"
+                        className="pt-4 text-xs font-medium uppercase tracking-[0.2em] text-ink/30 first:pt-0"
                       >
                         {line.text.replace(/^\[|\]$/g, '')}
                       </p>
@@ -997,7 +1046,7 @@ export default function GiftReveal({ giftId }: { giftId: string }) {
                         ref={(el) => {
                           lineRefs.current[i] = el;
                         }}
-                        className="font-serif text-xl leading-relaxed transition-all duration-500 sm:text-2xl"
+                        className="font-serif text-base leading-relaxed transition-all duration-500 sm:text-lg"
                         style={
                           line.singableIndex === activeSingable && playing
                             ? { color: accent, opacity: 1, transform: 'scale(1.04)' }
@@ -1010,11 +1059,11 @@ export default function GiftReveal({ giftId }: { giftId: string }) {
                   )}
                 </div>
               </div>
-            </motion.section>
+            </motion.div>
 
             <motion.p
-              {...entrance(0.8)}
-              className="mt-14 pb-4 text-center text-sm text-ink/40"
+              {...entrance(0.7)}
+              className="mt-2.5 pb-3 text-center text-xs text-ink/40"
             >
               Made with <span className="font-serif italic">love</span> at{' '}
               <Link href="/" className="underline underline-offset-4" style={{ color: accent }}>

@@ -10,6 +10,7 @@ import {
   createSongCheckoutSession,
   GIFT_PACKS,
 } from '@/lib/stripe';
+import { archiveTracks } from '@/lib/storage';
 import type { Track, Upsells } from '@/types';
 
 interface CheckoutRequestBody {
@@ -124,11 +125,15 @@ export async function POST(req: NextRequest) {
     // song immediately (mirrors the webhook's unlock). Remove this block or
     // unset the flag to restore the real payment flow. Regen render is skipped.
     if (process.env.PAYMENT_BYPASS === '1') {
-      const tracksUnlocked = tracks.map((t) => ({
-        ...t,
-        unlocked:
-          upsells.keepEveryVersion || t.sunoTrackId === selected.sunoTrackId,
-      }));
+      // Mirrors the webhook: archive to S3 at payment before Suno expires.
+      const tracksUnlocked = await archiveTracks(
+        song.id,
+        tracks.map((t) => ({
+          ...t,
+          unlocked:
+            upsells.keepEveryVersion || t.sunoTrackId === selected.sunoTrackId,
+        }))
+      );
       await prisma.song.update({
         where: { id: song.id },
         data: {

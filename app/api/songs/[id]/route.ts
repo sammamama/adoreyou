@@ -17,6 +17,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { Gift, Song } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { sendSongReadyEmail } from '@/lib/email';
+import { archiveTracks, trackPlaybackUrl } from '@/lib/storage';
 import { getPaymentIntentId, refundRegenLineItem } from '@/lib/stripe';
 import { getGenerationStatus } from '@/lib/suno';
 import type { StyleInputs, Track, Upsells } from '@/types';
@@ -25,21 +26,27 @@ import type { StyleInputs, Track, Upsells } from '@/types';
 // them for the sent-gifts list and remaining-credit math.
 const withGifts = { gifts: { orderBy: { createdAt: 'asc' as const } } };
 
-function serialize(song: Song & { gifts: Gift[] }) {
+async function serialize(song: Song & { gifts: Gift[] }) {
   const tracks = song.tracks as unknown as Track[];
   const upsells = song.upsells as unknown as Upsells;
   const isPaid = song.status === 'paid' || song.status === 'done';
 
-  const responseTracks = tracks.map((t, index) => ({
-    index,
-    genre: t.genre,
-    kind: t.kind,
-    previewUrl: `/api/songs/${song.id}/preview/${index}`,
-    // Full audio only for paid + unlocked tracks — never before.
-    ...(isPaid && t.unlocked
-      ? { audioUrl: t.audioUrl, downloadUrl: `/api/songs/${song.id}/download/${index}` }
-      : {}),
-  }));
+  const responseTracks = await Promise.all(
+    tracks.map(async (t, index) => ({
+      index,
+      genre: t.genre,
+      kind: t.kind,
+      previewUrl: `/api/songs/${song.id}/preview/${index}`,
+      // Full audio only for paid + unlocked tracks — never before. Signed
+      // storage URL once archived (Suno's CDN expires ~1 week).
+      ...(isPaid && t.unlocked
+        ? {
+            audioUrl: await trackPlaybackUrl(t),
+            downloadUrl: `/api/songs/${song.id}/download/${index}`,
+          }
+        : {}),
+    }))
+  );
 
   return {
     id: song.id,
@@ -136,11 +143,15 @@ export async function GET(
       );
 
       if (result.state === 'complete') {
-        const regenTracks: Track[] = result.tracks.map((t) => ({
-          ...t,
-          kind: 'regen',
-          unlocked: upsells.keepEveryVersion,
-        }));
+        // Song is already paid — archive the fresh regen pair right away.
+        const regenTracks: Track[] = await archiveTracks(
+          id,
+          result.tracks.map((t) => ({
+            ...t,
+            kind: 'regen' as const,
+            unlocked: upsells.keepEveryVersion,
+          }))
+        );
         upsells.regenPending = false;
         upsells.regenPickPending = true;
         song = await prisma.song.update({
@@ -203,7 +214,23 @@ export async function GET(
     }
   }
 
-  return NextResponse.json({ data: serialize(song), error: null });
+  // Self-heal: a paid song with un-archived tracks (copy failed at payment
+  // time, or storage creds were added later) retries here while the Suno
+  // URLs are still alive. No-op when storage isn't configured.
+  const isPaid = song.status === 'paid' || song.status === 'done';
+  const currentTracks = song.tracks as unknown as Track[];
+  if (isPaid && currentTracks.some((t) => !t.storageKey)) {
+    const archived = await archiveTracks(song.id, currentTracks);
+    if (archived.some((t, i) => t.storageKey !== currentTracks[i].storageKey)) {
+      song = await prisma.song.update({
+        where: { id },
+        data: { tracks: JSON.parse(JSON.stringify(archived)) },
+        include: withGifts,
+      });
+    }
+  }
+
+  return NextResponse.json({ data: await serialize(song), error: null });
 }
 
 // Final pick after a regen render — only valid while regenPickPending. Sets
@@ -269,5 +296,5 @@ export async function PATCH(
     include: withGifts,
   });
 
-  return NextResponse.json({ data: serialize(updated), error: null });
+  return NextResponse.json({ data: await serialize(updated), error: null });
 }

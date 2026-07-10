@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
-import ExamplesSection from '@/components/ExamplesSection';
+import ExamplesCarousel from '@/components/ExamplesCarousel';
 import OccasionCard from '@/components/OccasionCard';
 import Button from '@/components/ui/Button';
 import { OCCASIONS } from '@/lib/occasions';
@@ -35,7 +35,7 @@ export default function Home() {
   });
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex flex-1 flex-col overflow-x-clip">
       <header className="mx-auto w-full max-w-6xl px-6 py-6">
         <span className="font-serif text-2xl">
           Adore<span className="italic text-accent">You</span>
@@ -44,7 +44,7 @@ export default function Home() {
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-6">
         {/* Hero */}
-        <section className="py-16 text-center sm:py-24">
+        <section className="pb-16 pt-6 text-center sm:pb-24 sm:pt-8">
           <motion.h1
             {...entrance(0)}
             className="mx-auto max-w-3xl font-serif text-5xl leading-tight tracking-tight sm:text-7xl"
@@ -52,15 +52,11 @@ export default function Home() {
             Create a one-of-a-kind song for someone you{' '}
             <span className="italic text-accent">love</span>
           </motion.h1>
-          <motion.p
-            {...entrance(0.07)}
-            className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-ink/60"
-          >
-            Share your memories, and we&rsquo;ll turn them into an original
-            song — written for them, from you.
-          </motion.p>
-          <motion.div {...entrance(0.14)} className="mt-10">
-            <Button href="#occasions">Create Your Song</Button>
+
+          {/* Receive-one examples — curved infinite carousel */}
+          <ExamplesCarousel />
+          <motion.div {...entrance(0.21)} className="mt-8">
+            <Button href="#occasions">Create the Song</Button>
           </motion.div>
         </section>
 
@@ -80,9 +76,6 @@ export default function Home() {
             ))}
           </div>
         </section>
-
-        {/* See examples */}
-        <ExamplesSection />
       </main>
 
       <footer className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-8 text-sm text-ink/40">

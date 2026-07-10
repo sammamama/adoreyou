@@ -5,14 +5,16 @@
 // Remaining credits = giftCredits minus gifts already created; copy-paste
 // sharing of an existing gift stays free.
 //
-// Multipart FormData: text fields + optional photo / voice note (stored as
-// bytea — no blob storage configured). deliverAt in the future defers the
+// Multipart FormData: text fields + optional photo / voice note (uploaded to
+// S3, keys stored on the gift row). deliverAt in the future defers the
 // delivery email to the cron route and locks the reveal page until then.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { generateAccessCode } from '@/lib/access-code';
-import { sendGiftDeliveryEmail } from '@/lib/email';
+import { sendGiftDeliveryEmail, sendGiftSentEmail } from '@/lib/email';
+import { putObject, storageConfigured } from '@/lib/storage';
+import { randomUUID } from 'crypto';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_PHOTO_BYTES = 3 * 1024 * 1024; // Vercel body limit is 4.5MB total
@@ -118,6 +120,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if ((photoFile || voiceFile) && !storageConfigured()) {
+    return NextResponse.json(
+      {
+        data: null,
+        error: 'Photo and voice note uploads aren’t available right now.',
+      },
+      { status: 503 }
+    );
+  }
+
   const song = await prisma.song.findUnique({
     where: { id: songId },
     include: { gifts: true },
@@ -149,6 +161,38 @@ export async function POST(req: NextRequest) {
 
   const accessCode = generateAccessCode(song.gifts.map((g) => g.accessCode));
 
+  // Upload media to S3 before creating the row — a failed upload fails the
+  // whole request (no credit consumed) rather than a gift missing its media.
+  let photoKey: string | null = null;
+  let voiceKey: string | null = null;
+  try {
+    if (photoFile) {
+      photoKey = `gifts/${song.id}/${randomUUID()}-photo`;
+      await putObject(
+        photoKey,
+        new Uint8Array(await photoFile.arrayBuffer()),
+        photoFile.type
+      );
+    }
+    if (voiceFile) {
+      voiceKey = `gifts/${song.id}/${randomUUID()}-voice`;
+      await putObject(
+        voiceKey,
+        new Uint8Array(await voiceFile.arrayBuffer()),
+        voiceFile.type
+      );
+    }
+  } catch (err) {
+    console.error(`gift media upload failed for song ${song.id}:`, err);
+    return NextResponse.json(
+      {
+        data: null,
+        error: 'Couldn’t save your photo or voice note — try again.',
+      },
+      { status: 502 }
+    );
+  }
+
   const gift = await prisma.gift.create({
     data: {
       songId: song.id,
@@ -157,13 +201,9 @@ export async function POST(req: NextRequest) {
       recipientEmail,
       accessCode,
       deliverAt,
-      photo: photoFile
-        ? new Uint8Array(await photoFile.arrayBuffer())
-        : null,
+      photoKey,
       photoMime: photoFile?.type ?? null,
-      voiceNote: voiceFile
-        ? new Uint8Array(await voiceFile.arrayBuffer())
-        : null,
+      voiceKey,
       voiceMime: voiceFile?.type ?? null,
     },
   });
@@ -187,6 +227,20 @@ export async function POST(req: NextRequest) {
         data: { sentAt: new Date() },
       });
       emailSent = true;
+      // Confirmation to the creator — best-effort, never fails the request.
+      if (song.email) {
+        try {
+          await sendGiftSentEmail({
+            to: song.email,
+            recipientEmail,
+            giftId: gift.id,
+            accessCode,
+            occasion: song.occasion,
+          });
+        } catch (err) {
+          console.error(`gift sent email failed for gift ${gift.id}:`, err);
+        }
+      }
     } catch (err) {
       console.error(`gift delivery email failed for gift ${gift.id}:`, err);
     }

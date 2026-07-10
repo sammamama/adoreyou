@@ -207,6 +207,51 @@ export async function sendGiftDeliveryEmail(opts: {
 }
 
 // ---------------------------------------------------------------------------
+// (b2) Gift sent confirmation — to the creator, sent when the delivery email
+// goes out to the recipient. Includes the link + code so the creator can
+// also share them directly.
+
+export async function sendGiftSentEmail(opts: {
+  to: string;
+  recipientEmail: string;
+  giftId: string;
+  accessCode: string;
+  occasion: string; // slug
+}) {
+  const accent = accentFor(opts.occasion);
+  const giftLink = `${appUrl()}/gift/${opts.giftId}`;
+  const recipient = escapeHtml(opts.recipientEmail);
+
+  const html = layout(`
+    ${eyebrow('Gift delivered', accent)}
+    ${heading(`Your gift is on its <em style="font-style: italic;">way</em>`)}
+    ${paragraph(`We just emailed your song to <strong>${recipient}</strong> with their access code.`)}
+    ${paragraph(`Want to share it yourself too? Here's everything they received:`)}
+    <div style="margin: 28px 0;">${button(giftLink, 'View the gift page', accent)}</div>
+    <div style="margin: 24px 0;">${codeBlock(opts.accessCode, 'Their access code')}</div>
+    ${paragraph(`If their email lands in spam, just send them <a href="${giftLink}" style="color: ${accent};">${giftLink}</a> and the code above.`)}
+  `);
+
+  const text = [
+    `Your gift is on its way!`,
+    ``,
+    `We just emailed your song to ${opts.recipientEmail} with their access code.`,
+    ``,
+    `Gift page: ${giftLink}`,
+    `Access code: ${opts.accessCode}`,
+    ``,
+    `If their email lands in spam, send them the link and code yourself.`,
+  ].join('\n');
+
+  await send({
+    to: [opts.to],
+    subject: `Your gift to ${opts.recipientEmail} is on its way`,
+    html,
+    text,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // (c) Login code — 6-digit "Find My Songs" code (used by a later phase).
 
 export async function sendLoginCodeEmail(opts: { to: string; code: string }) {

@@ -1,6 +1,6 @@
 'use client';
 
-// Step 6 ready state — 30s preview players for both versions, pick the
+// Step 6 ready state — 15s preview players for both versions, pick the
 // favorite (required), plus the two preview upsells (decision #14):
 // Keep Every Version +$8.99, Regenerate in New Genre +$20.
 
@@ -143,7 +143,7 @@ export default function PreviewPicker({
                       style={{ width: `${pct * 100}%` }}
                     />
                   </div>
-                  <p className="mt-1.5 text-xs text-ink/40">30-second preview</p>
+                  <p className="mt-1.5 text-xs text-ink/40">15-second preview</p>
                 </div>
 
                 <div
@@ -180,7 +180,7 @@ export default function PreviewPicker({
                   const el = e.currentTarget;
                   const duration = Number.isFinite(el.duration)
                     ? el.duration
-                    : 30;
+                    : 15;
                   setProgress((prev) => ({
                     ...prev,
                     [track.index]: Math.min(el.currentTime / duration, 1),

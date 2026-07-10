@@ -73,7 +73,7 @@ function PauseIcon() {
 }
 
 // Final pick after the regen pair lands — all versions playable (full audio
-// where unlocked, 30s previews otherwise), pick one, confirm via PATCH.
+// where unlocked, 15s previews otherwise), pick one, confirm via PATCH.
 function FinalPick({
   song,
   onPicked,
@@ -189,7 +189,7 @@ function FinalPick({
                     </span>
                   </div>
                   <p className="mt-1.5 text-xs text-ink/40">
-                    {track.audioUrl ? 'Full song' : '30-second preview'}
+                    {track.audioUrl ? 'Full song' : '15-second preview'}
                   </p>
                 </div>
 

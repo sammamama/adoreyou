@@ -14,6 +14,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { sendSongReadyEmail } from '@/lib/email';
 import { getOccasion } from '@/lib/occasions';
+import { archiveTracks } from '@/lib/storage';
 import { refundRegenLineItem, stripe } from '@/lib/stripe';
 import { startGeneration } from '@/lib/suno';
 import type { StyleInputs, Track, Upsells } from '@/types';
@@ -92,10 +93,17 @@ export async function POST(req: NextRequest) {
   const upsells = song.upsells as unknown as Upsells;
 
   // Unlock: the chosen track, or everything if Keep Every Version was bought.
-  const tracks = (song.tracks as unknown as Track[]).map((t) => ({
-    ...t,
-    unlocked: upsells.keepEveryVersion || t.sunoTrackId === song.selectedTrackId,
-  }));
+  // Archive ALL tracks to S3 now that the song is paid — Suno's CDN expires
+  // in ~a week, and even locked tracks may unlock later (regen final pick,
+  // Keep Every Version). Best-effort: a failed copy keeps the Suno URL and
+  // the song poll route retries.
+  const tracks = await archiveTracks(
+    songId,
+    (song.tracks as unknown as Track[]).map((t) => ({
+      ...t,
+      unlocked: upsells.keepEveryVersion || t.sunoTrackId === song.selectedTrackId,
+    }))
+  );
 
   // Decision #13 — if the email was changed on Stripe's page, store both.
   const stripeEmail = session.customer_details?.email?.toLowerCase() ?? null;

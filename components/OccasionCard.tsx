@@ -49,13 +49,14 @@ export default function OccasionCard({ occasion }: { occasion: Occasion }) {
     return () => observer.disconnect();
   }, []);
 
-  // Video downloads nothing until in view (preload="none"), pauses offscreen
+  // Video downloads nothing until hovered (preload="none" + play on hover);
+  // pauses on leave and offscreen
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (inView) video.play().catch(() => {});
+    if (inView && active) video.play().catch(() => {});
     else video.pause();
-  }, [inView, videoEligible]);
+  }, [inView, active, videoEligible]);
 
   const [c0, c1, c2, c3] = theme.colors;
   const fallbackGradient = {

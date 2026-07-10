@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { sendGiftDeliveryEmail } from '@/lib/email';
+import { sendGiftDeliveryEmail, sendGiftSentEmail } from '@/lib/email';
 
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
@@ -21,8 +21,7 @@ export async function GET(req: NextRequest) {
       sentAt: null,
       recipientEmail: { not: null },
     },
-    omit: { photo: true, voiceNote: true },
-    include: { song: { select: { occasion: true } } },
+    include: { song: { select: { occasion: true, email: true } } },
   });
 
   let sent = 0;
@@ -41,6 +40,20 @@ export async function GET(req: NextRequest) {
         data: { sentAt: new Date() },
       });
       sent++;
+      // Confirmation to the creator — best-effort, never blocks the batch.
+      if (gift.song.email) {
+        try {
+          await sendGiftSentEmail({
+            to: gift.song.email,
+            recipientEmail: gift.recipientEmail!,
+            giftId: gift.id,
+            accessCode: gift.accessCode,
+            occasion: gift.song.occasion,
+          });
+        } catch (err) {
+          console.error(`gift sent email failed for gift ${gift.id}:`, err);
+        }
+      }
     } catch (err) {
       console.error(`scheduled delivery failed for gift ${gift.id}:`, err);
     }

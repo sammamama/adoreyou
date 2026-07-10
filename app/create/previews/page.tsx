@@ -1,7 +1,7 @@
 'use client';
 
 // Step 6 — previews + preview upsells. Polls GET /api/songs/[id] while Suno
-// renders (decision #4), then shows both 30s previews with the pick +
+// renders (decision #4), then shows both 15s previews with the pick +
 // Keep Every Version / Regenerate in New Genre upsells.
 
 import { motion, useReducedMotion } from 'motion/react';

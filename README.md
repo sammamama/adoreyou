@@ -11,7 +11,7 @@ No accounts. No passwords. Just a song, a code, and a reveal moment.
 1. **Pick an occasion** — Birthday, Wedding, Anniversary, Father's/Mother's Day, Graduation, Memorial, Friendship, or Thank You.
 2. **Tell their story** — Hinge-style guided prompts ("The last time they made you laugh until it hurt...") pull out real memories. Answer at least 4.
 3. **Shape the song** — Pick a genre, get AI-written lyrics in an editable canvas, and refine them with chat-style revision requests (or edit directly, free and unlimited).
-4. **Hear it first** — Two versions render while you wait (with a "discover a rising local artist" Spotify widget to pass the time). Listen to 30-second previews *before* paying — full audio never leaves the server until checkout completes.
+4. **Hear it first** — Two versions render while you wait (with a "discover a rising local artist" Spotify widget to pass the time). Listen to 15-second previews *before* paying — full audio never leaves the server until checkout completes.
 5. **Pay once, per song** — Stripe Checkout with optional upsells: extra verses, keep every version, regenerate in a new genre.
 6. **Gift the reveal** — Every song includes a gift credit: a dedicated page with a personal message and its own 4-digit PIN. The recipient enters the code, an envelope opens, the song plays, lyrics scroll in sync, confetti falls (petals for weddings, stars for memorials).
 
@@ -106,7 +106,7 @@ app/
   create/[occasion]/        guided story prompts
   create/lyrics/            genre + lyrics canvas + AI revisions
   create/length/            song length upsell → starts generation
-  create/previews/          30s previews, pick a favorite, upsells
+  create/previews/          15s previews, pick a favorite, upsells
   create/checkout/          email + order summary → Stripe
   song/[id]/                unlock + song ready (creator view)
   gift/[giftId]/            recipient reveal (PIN → envelope → song)
@@ -121,7 +121,7 @@ prisma/schema.prisma        songs, gifts, login codes
 
 ## A few implementation notes
 
-- **Preview-before-pay** — generation starts pre-payment so rendering hides behind the upsell/preview flow. The API serves range-limited 30s preview streams; full audio URLs are never sent to the client until the Stripe webhook marks the song paid.
+- **Preview-before-pay** — generation starts pre-payment so rendering hides behind the upsell/preview flow. The API serves range-limited 15s preview streams; full audio URLs are never sent to the client until the Stripe webhook marks the song paid.
 - **Failed regeneration auto-refunds** — if a post-payment re-render fails, exactly that line item is refunded via Stripe with an idempotency key guarding double refunds.
 - **Email is identity** — no users table. Checkout email + a 6-digit OTP (hashed, 10-min expiry, 5 attempts) → stateless JWT cookie.
 - **Drafts survive refresh** — the whole creation flow persists to localStorage and clears only after successful payment.

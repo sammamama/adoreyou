@@ -28,6 +28,57 @@ body {
   cursor: pointer;
 }
 
+/* Examples ring carousel (landing page) — N panels on a 3D cylinder filling
+   a full 360 circle. --ring-mult is set inline by the component from the
+   panel count: r = (panel-width + gap) / (2 * tan(180deg / N)). */
+.ring-scene {
+  --ring-panel-w: clamp(110px, 13vw, 190px);
+  --ring-panel-h: calc(var(--ring-panel-w) * 1.3);
+  --ring-gap: 12px;
+  --ring-r: calc((var(--ring-panel-w) + var(--ring-gap)) * var(--ring-mult, 1.866));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--ring-panel-h) + 56px);
+  perspective: 1800px;
+}
+
+.ring-track {
+  position: relative;
+  width: var(--ring-panel-w);
+  height: var(--ring-panel-h);
+  transform-style: preserve-3d;
+  animation: ring-spin 60s linear infinite;
+}
+
+.ring-scene:hover .ring-track,
+.ring-scene.ring-paused .ring-track {
+  animation-play-state: paused;
+}
+
+.ring-panel {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  backface-visibility: hidden;
+}
+
+@keyframes ring-spin {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(-360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring-track {
+    animation: none;
+  }
+}
+
 /* Processing waveform (Step 6 wait state) */
 @keyframes waveform-bounce {
   0%,
