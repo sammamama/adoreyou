@@ -19,6 +19,11 @@ import { refundRegenLineItem, stripe } from '@/lib/stripe';
 import { startGeneration } from '@/lib/suno';
 import type { StyleInputs, Track, Upsells } from '@/types';
 
+// Archiving tracks to S3 moves megabytes through this function — don't let
+// the platform default cut it off mid-work (the event id is already
+// recorded, so Stripe's retry would be swallowed by the idempotency guard).
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const payload = await req.text();
   const signature = req.headers.get('stripe-signature');
@@ -130,12 +135,8 @@ export async function POST(req: NextRequest) {
       status = 'paid';
     } catch (err) {
       console.error(`regen render failed to start for song ${songId}:`, err);
-      const paymentIntentId =
-        typeof session.payment_intent === 'string'
-          ? session.payment_intent
-          : session.payment_intent?.id;
-      if (paymentIntentId && !upsells.regenRefunded) {
-        await refundRegenLineItem(songId, paymentIntentId);
+      if (!upsells.regenRefunded) {
+        await refundRegenLineItem(songId, session.id);
         upsells.regenRefunded = true;
       }
     }
@@ -168,6 +169,7 @@ export async function POST(req: NextRequest) {
           songTitle: `A song for ${song.recipientName}`,
           recipientName: song.recipientName,
           occasion: song.occasion,
+          accountEmail: song.email ?? stripeEmail,
         });
       } catch (err) {
         console.error(`song-ready email failed for song ${songId}:`, err);

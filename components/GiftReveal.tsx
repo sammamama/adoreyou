@@ -81,8 +81,19 @@ function ConfettiEffect({ burst }: { burst: boolean }) {
       if (burst) {
         confetti({
           position: { x: window.innerWidth / 2, y: window.innerHeight * 0.3 },
-          count: 280,
-          velocity: 250,
+          count: 420,
+          velocity: 280,
+        });
+        // Side accents so the burst fills wide screens too.
+        confetti({
+          position: { x: window.innerWidth * 0.15, y: window.innerHeight * 0.45 },
+          count: 120,
+          velocity: 200,
+        });
+        confetti({
+          position: { x: window.innerWidth * 0.85, y: window.innerHeight * 0.45 },
+          count: 120,
+          velocity: 200,
         });
       }
 
@@ -90,12 +101,12 @@ function ConfettiEffect({ burst }: { burst: boolean }) {
       ambient = window.setInterval(() => {
         confetti({
           position: { x: Math.random() * window.innerWidth, y: -20 },
-          count: 6,
+          count: 10,
           velocity: 50,
           size: 0.9,
           fade: true,
         });
-      }, 400);
+      }, 280);
     });
 
     return () => {

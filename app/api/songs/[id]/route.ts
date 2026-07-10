@@ -18,9 +18,13 @@ import type { Gift, Song } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { sendSongReadyEmail } from '@/lib/email';
 import { archiveTracks, trackPlaybackUrl } from '@/lib/storage';
-import { getPaymentIntentId, refundRegenLineItem } from '@/lib/stripe';
+import { refundRegenLineItem } from '@/lib/stripe';
 import { getGenerationStatus } from '@/lib/suno';
 import type { StyleInputs, Track, Upsells } from '@/types';
+
+// Regen-complete archiving and the self-heal pass move megabytes through
+// this handler — allow more than the platform default.
+export const maxDuration = 60;
 
 // Every read/write in this file carries the song's gifts — serialize() needs
 // them for the sent-gifts list and remaining-credit math.
@@ -169,11 +173,8 @@ export async function GET(
       } else if (result.state === 'failed') {
         console.error(`regen render failed for song ${id}:`, result.reason);
         if (!upsells.regenRefunded && song.stripeSessionId) {
-          const paymentIntentId = await getPaymentIntentId(song.stripeSessionId);
-          if (paymentIntentId) {
-            await refundRegenLineItem(id, paymentIntentId);
-            upsells.regenRefunded = true;
-          }
+          await refundRegenLineItem(id, song.stripeSessionId);
+          upsells.regenRefunded = true;
         }
         upsells.regenPending = false;
         song = await prisma.song.update({
@@ -207,6 +208,7 @@ export async function GET(
           songTitle: `A song for ${song.recipientName}`,
           recipientName: song.recipientName,
           occasion: song.occasion,
+          accountEmail: song.email ?? song.stripeEmail,
         });
       } catch (err) {
         console.error(`song-ready email failed for song ${song.id}:`, err);

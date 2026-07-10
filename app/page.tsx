@@ -3,6 +3,8 @@
 import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import ExamplesCarousel from '@/components/ExamplesCarousel';
+import HowItWorks from '@/components/HowItWorks';
+import Navbar from '@/components/Navbar';
 import OccasionCard from '@/components/OccasionCard';
 import Button from '@/components/ui/Button';
 import { OCCASIONS } from '@/lib/occasions';
@@ -36,15 +38,11 @@ export default function Home() {
 
   return (
     <div className="flex flex-1 flex-col overflow-x-clip">
-      <header className="mx-auto w-full max-w-6xl px-6 py-6">
-        <span className="font-serif text-2xl">
-          Adore<span className="italic text-accent">You</span>
-        </span>
-      </header>
+      <Navbar />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-6">
-        {/* Hero */}
-        <section className="pb-16 pt-6 text-center sm:pb-24 sm:pt-8">
+        {/* Hero — top padding clears the fixed navbar */}
+        <section className="pb-16 pt-28 text-center sm:pb-24 sm:pt-32">
           <motion.h1
             {...entrance(0)}
             className="mx-auto max-w-3xl font-serif text-5xl leading-tight tracking-tight sm:text-7xl"
@@ -60,8 +58,11 @@ export default function Home() {
           </motion.div>
         </section>
 
+        {/* How it works — above the occasions grid */}
+        <HowItWorks />
+
         {/* Occasions */}
-        <section id="occasions" className="pb-24">
+        <section id="occasions" className="scroll-mt-24 pb-24">
           <motion.h2
             {...cardEntrance(0)}
             className="font-serif text-3xl sm:text-4xl"
@@ -76,6 +77,7 @@ export default function Home() {
             ))}
           </div>
         </section>
+
       </main>
 
       <footer className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-8 text-sm text-ink/40">

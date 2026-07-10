@@ -33,8 +33,10 @@ export function signSessionToken(email: string): string {
   return `${header}.${payload}.${sign(`${header}.${payload}`)}`;
 }
 
-// Returns the session email, or null for a missing/tampered/expired token.
-export function verifySessionToken(token: string | undefined): string | null {
+// Verified payload of a signed token, or null for missing/tampered/expired.
+function verifyToken(
+  token: string | undefined
+): { email: string; purpose?: string } | null {
   if (!token) return null;
   const parts = token.split('.');
   if (parts.length !== 3) return null;
@@ -51,10 +53,39 @@ export function verifySessionToken(token: string | undefined): string | null {
     if (typeof payload.exp !== 'number' || payload.exp * 1000 < Date.now()) {
       return null;
     }
-    return payload.email;
+    return payload;
   } catch {
     return null;
   }
+}
+
+// Returns the session email, or null for a missing/tampered/expired token.
+// Rejects purpose-claimed tokens (magic links) — an emailed token can't be
+// pasted in as a session cookie.
+export function verifySessionToken(token: string | undefined): string | null {
+  const payload = verifyToken(token);
+  return payload && payload.purpose === undefined ? payload.email : null;
+}
+
+// ---------------------------------------------------------------------------
+// Magic sign-in link (song-ready email) — same HMAC shape with a `purpose`
+// claim so the two token kinds can't be swapped. The link exchanges the
+// token for a normal session cookie via /api/auth/magic.
+
+export const MAGIC_MAX_AGE = 30 * 24 * 60 * 60; // 30 days, seconds
+
+export function signMagicToken(email: string): string {
+  const now = Math.floor(Date.now() / 1000);
+  const header = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const payload = b64url(
+    JSON.stringify({ email, purpose: 'magic', iat: now, exp: now + MAGIC_MAX_AGE })
+  );
+  return `${header}.${payload}.${sign(`${header}.${payload}`)}`;
+}
+
+export function verifyMagicToken(token: string | undefined): string | null {
+  const payload = verifyToken(token);
+  return payload && payload.purpose === 'magic' ? payload.email : null;
 }
 
 export const sessionCookieOptions = {

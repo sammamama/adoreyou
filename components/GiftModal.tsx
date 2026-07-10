@@ -29,9 +29,9 @@ const ease = [0.22, 1, 0.36, 1] as const;
 const SENDER_KEY = 'adoreyou-gift-sender';
 
 const PACKS = [
-  { pack: '1', credits: 1, price: '$3' },
-  { pack: '3', credits: 3, price: '$5' },
-  { pack: '10', credits: 10, price: '$15' },
+  { pack: '1', credits: 1, price: '$1.99' },
+  { pack: '3', credits: 3, price: '$3.99' },
+  { pack: '10', credits: 10, price: '$9.99' },
 ];
 
 type CreatedGift = {
@@ -392,7 +392,7 @@ export default function GiftModal({
                         {credits} gift{credits === 1 ? '' : 's'}
                       </span>
                       <span className="text-lg font-medium text-accent">
-                        {buyingPack === pack ? 'Opening checkout...' : `${price} AUD`}
+                        {buyingPack === pack ? 'Opening checkout...' : `${price} USD`}
                       </span>
                     </button>
                   ))}

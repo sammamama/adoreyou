@@ -25,13 +25,13 @@ const OPTIONS: { verses: 2 | 3 | 4; label: string; price: string; blurb: string 
   {
     verses: 3,
     label: '3 verses',
-    price: '+$14.99 AUD',
+    price: '+$9.99 USD',
     blurb: 'An extra verse for one more memory, a longer track.',
   },
   {
     verses: 4,
     label: '4 verses',
-    price: '+$20.00 AUD',
+    price: '+$12.99 USD',
     blurb: 'Two extra verses — the fullest telling of their story.',
   },
 ];

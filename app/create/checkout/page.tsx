@@ -16,13 +16,13 @@ const ease = [0.22, 1, 0.36, 1] as const;
 
 // Display only — the server is the price authority.
 const PRICES = {
-  base: 2999,
-  length: { 2: 0, 3: 1499, 4: 2000 } as Record<2 | 3 | 4, number>,
-  keepEveryVersion: 899,
-  regen: 2000,
+  base: 2000,
+  length: { 2: 0, 3: 999, 4: 1299 } as Record<2 | 3 | 4, number>,
+  keepEveryVersion: 599,
+  regen: 1299,
 };
 
-const aud = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+const usd = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
 function CheckoutPageInner() {
   const reduced = useReducedMotion();
@@ -210,16 +210,19 @@ function CheckoutPageInner() {
                       className="flex items-baseline justify-between gap-4 text-sm"
                     >
                       <span className="text-ink/70">{line.label}</span>
-                      <span>{aud(line.amount)}</span>
+                      <span>{usd(line.amount)}</span>
                     </li>
                   ))}
                 </ul>
                 <div className="mt-4 flex items-baseline justify-between border-t border-ink/10 pt-4">
                   <span className="font-medium">Total</span>
                   <span className="font-serif text-2xl">
-                    {aud(total)} <span className="text-sm text-ink/50">AUD</span>
+                    {usd(total)} <span className="text-sm text-ink/50">USD</span>
                   </span>
                 </div>
+                <p className="mt-3 text-xs text-ink/40">
+                  Checkout shows the total in your local currency.
+                </p>
               </div>
             </motion.section>
 
@@ -249,7 +252,7 @@ function CheckoutPageInner() {
                 >
                   {loading
                     ? 'Taking you to payment...'
-                    : `Pay ${aud(total)} AUD`}
+                    : `Pay ${usd(total)} USD`}
                 </Button>
               )}
             </motion.div>

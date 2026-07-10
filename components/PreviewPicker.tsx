@@ -2,7 +2,7 @@
 
 // Step 6 ready state — 15s preview players for both versions, pick the
 // favorite (required), plus the two preview upsells (decision #14):
-// Keep Every Version +$8.99, Regenerate in New Genre +$20.
+// Keep Every Version +$5.99, Regenerate in New Genre +$12.99.
 
 import { motion, useReducedMotion } from 'motion/react';
 import { useRef, useState } from 'react';
@@ -220,7 +220,7 @@ export default function PreviewPicker({
                   keepEveryVersion ? 'text-accent' : 'text-ink/50'
                 }`}
               >
-                +$8.99 AUD
+                +$5.99 USD
               </span>
             </div>
             <p className="mt-2 text-sm text-ink/60">
@@ -259,7 +259,7 @@ export default function PreviewPicker({
                     regenOpen ? 'text-accent' : 'text-ink/50'
                   }`}
                 >
-                  +$20.00 AUD
+                  +$12.99 USD
                 </span>
               </div>
               <p className="mt-2 text-sm text-ink/60">

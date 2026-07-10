@@ -12,6 +12,7 @@
 
 import { Resend } from 'resend';
 import { getOccasion } from '@/lib/occasions';
+import { signMagicToken } from '@/lib/session';
 
 const FALLBACK_ACCENT = '#E11D48'; // rose — base palette accent
 
@@ -116,6 +117,9 @@ function paragraph(html: string): string {
 
 // ---------------------------------------------------------------------------
 // (a) Song ready — to the creator, sent when the song reaches `done`.
+// `accountEmail` (the creator's identity email) turns the dashboard mention
+// into a magic sign-in link — one click from the inbox to every song they've
+// made, no code entry.
 
 export async function sendSongReadyEmail(opts: {
   to: string[];
@@ -123,9 +127,13 @@ export async function sendSongReadyEmail(opts: {
   songTitle: string;
   recipientName: string;
   occasion: string; // slug
+  accountEmail?: string | null;
 }) {
   const accent = accentFor(opts.occasion);
   const songLink = `${appUrl()}/song/${opts.songId}`;
+  const mySongsLink = opts.accountEmail
+    ? `${appUrl()}/api/auth/magic?token=${signMagicToken(opts.accountEmail)}`
+    : `${appUrl()}/my-songs`;
   const name = escapeHtml(opts.recipientName);
   const title = escapeHtml(opts.songTitle);
 
@@ -134,7 +142,7 @@ export async function sendSongReadyEmail(opts: {
     ${heading(`Your song is <em style="font-style: italic;">ready</em>`)}
     ${paragraph(`<strong>${title}</strong> — your ${escapeHtml(occasionName(opts.occasion).toLowerCase())} song for ${name} — is finished and waiting for you.`)}
     <div style="margin: 28px 0;">${button(songLink, 'Listen to your song', accent)}</div>
-    ${paragraph(`You can download the MP3 anytime from <a href="${songLink}" style="color: ${accent};">your song page</a>.`)}
+    ${paragraph(`You can download the MP3 anytime from <a href="${songLink}" style="color: ${accent};">your song page</a>, and every song you've made lives in <a href="${mySongsLink}" style="color: ${accent};">your songs</a> — this link signs you in, no code needed.`)}
     <hr style="border: none; border-top: 1px solid #f5f0ee; margin: 28px 0;" />
     ${heading(`Gift it to your <em style="font-style: italic;">person</em>`)}
     ${paragraph(`Every song includes one free gift — a beautiful reveal page made just for ${name}, protected by their own access code.`)}
@@ -147,6 +155,7 @@ export async function sendSongReadyEmail(opts: {
     `${opts.songTitle} — your ${occasionName(opts.occasion)} song for ${opts.recipientName} — is finished.`,
     ``,
     `Listen and download: ${songLink}`,
+    `All your songs (signs you in automatically): ${mySongsLink}`,
     ``,
     `Every song includes one free gift — create ${opts.recipientName}'s reveal page from your song page.`,
   ].join('\n');
