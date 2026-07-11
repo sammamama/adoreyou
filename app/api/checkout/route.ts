@@ -10,13 +10,7 @@ import {
   createSongCheckoutSession,
   GIFT_PACKS,
 } from '@/lib/stripe';
-import { sendSongReadyEmail } from '@/lib/email';
-import { archiveTracks } from '@/lib/storage';
 import type { Track, Upsells } from '@/types';
-
-// The PAYMENT_BYPASS path archives tracks to S3 — allow more than the
-// platform default.
-export const maxDuration = 60;
 
 interface CheckoutRequestBody {
   songId?: string;
@@ -70,20 +64,6 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
-      // DEV PAYMENT BYPASS — grant the pack's credits immediately (mirrors
-      // the webhook's gift-pack handler).
-      if (process.env.PAYMENT_BYPASS === '1') {
-        await prisma.song.update({
-          where: { id: song.id },
-          data: {
-            giftCredits: { increment: GIFT_PACKS[body.giftPack].credits },
-          },
-        });
-        return NextResponse.json({
-          data: { url: `/song/${song.id}` },
-          error: null,
-        });
-      }
       const session = await createGiftPackSession(song.id, body.giftPack);
       return NextResponse.json({ data: { url: session.url }, error: null });
     }
@@ -125,49 +105,6 @@ export async function POST(req: NextRequest) {
       keepEveryVersion: body.keepEveryVersion === true,
       ...(body.regenGenre ? { regenGenre: body.regenGenre } : {}),
     };
-
-    // DEV PAYMENT BYPASS — with PAYMENT_BYPASS=1, skip checkout and unlock the
-    // song immediately (mirrors the webhook's unlock). Remove this block or
-    // unset the flag to restore the real payment flow. Regen render is skipped.
-    if (process.env.PAYMENT_BYPASS === '1') {
-      // Mirrors the webhook: archive to S3 at payment before Suno expires.
-      const tracksUnlocked = await archiveTracks(
-        song.id,
-        tracks.map((t) => ({
-          ...t,
-          unlocked:
-            upsells.keepEveryVersion || t.sunoTrackId === selected.sunoTrackId,
-        }))
-      );
-      await prisma.song.update({
-        where: { id: song.id },
-        data: {
-          status: 'done',
-          email,
-          selectedTrackId: selected.sunoTrackId,
-          upsells: JSON.parse(JSON.stringify(upsells)),
-          tracks: JSON.parse(JSON.stringify(tracksUnlocked)),
-        },
-      });
-      // Mirrors the webhook: song-ready email (best-effort — never fails
-      // the checkout response).
-      try {
-        await sendSongReadyEmail({
-          to: [email],
-          songId: song.id,
-          songTitle: `A song for ${song.recipientName}`,
-          recipientName: song.recipientName,
-          occasion: song.occasion,
-          accountEmail: email,
-        });
-      } catch (err) {
-        console.error(`song-ready email failed for song ${song.id}:`, err);
-      }
-      return NextResponse.json({
-        data: { url: `/song/${song.id}` },
-        error: null,
-      });
-    }
 
     const session = await createSongCheckoutSession({
       songId: song.id,

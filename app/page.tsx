@@ -2,17 +2,31 @@
 
 import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
+import { useMemo, useState } from 'react';
 import ExamplesCarousel from '@/components/ExamplesCarousel';
 import HowItWorks from '@/components/HowItWorks';
 import Navbar from '@/components/Navbar';
 import OccasionCard from '@/components/OccasionCard';
 import Button from '@/components/ui/Button';
+import { fuzzyScore } from '@/lib/fuzzy';
 import { OCCASIONS } from '@/lib/occasions';
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
 export default function Home() {
   const reduced = useReducedMotion();
+  const [query, setQuery] = useState('');
+
+  const filteredOccasions = useMemo(() => {
+    if (!query.trim()) return OCCASIONS;
+    return OCCASIONS.map((o) => ({
+      occasion: o,
+      score: fuzzyScore(query, `${o.name} ${o.description}`),
+    }))
+      .filter((r): r is { occasion: typeof OCCASIONS[number]; score: number } => r.score !== null)
+      .sort((a, b) => a.score - b.score)
+      .map((r) => r.occasion);
+  }, [query]);
 
   // Standard entrance; reduced motion drops blur + y, keeps fade
   const entrance = (delay: number) => ({
@@ -69,13 +83,26 @@ export default function Home() {
           >
             What&rsquo;s the <span className="italic text-accent">occasion</span>?
           </motion.h2>
-          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {OCCASIONS.map((occasion, i) => (
-              <motion.div key={occasion.slug} {...cardEntrance(i)}>
-                <OccasionCard occasion={occasion} />
-              </motion.div>
-            ))}
-          </div>
+          <motion.input
+            {...cardEntrance(0.05)}
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search occasions..."
+            aria-label="Search occasions"
+            className="mt-6 w-full max-w-sm rounded-xl border border-ink/15 bg-white px-4 py-3 text-base outline-none transition-colors duration-200 placeholder:text-ink/30 focus:border-accent"
+          />
+          {filteredOccasions.length === 0 ? (
+            <p className="mt-8 text-ink/50">No occasions match &ldquo;{query}&rdquo;.</p>
+          ) : (
+            <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredOccasions.map((occasion, i) => (
+                <motion.div key={occasion.slug} {...cardEntrance(i)}>
+                  <OccasionCard occasion={occasion} />
+                </motion.div>
+              ))}
+            </div>
+          )}
         </section>
 
       </main>

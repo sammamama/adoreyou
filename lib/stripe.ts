@@ -107,6 +107,8 @@ export async function createSongCheckoutSession({
     mode: 'payment',
     customer_email: email,
     line_items: lineItems,
+    // Promo code box on the checkout page — used for 100%-off gift codes.
+    allow_promotion_codes: true,
     // Buyers see and pay in their local currency (Stripe converts from USD).
     adaptive_pricing: { enabled: true },
     metadata: { type: 'song', songId },
