@@ -2,8 +2,14 @@
 // the first thing the recipient sees, so it gets the occasion accent. Falls
 // back to generic branding when the gift can't be loaded.
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
 import { getGiftMeta } from './gift-meta';
+
+const logo = `data:image/png;base64,${readFileSync(
+  join(process.cwd(), 'public', 'logo-mark.png')
+).toString('base64')}`;
 
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
@@ -96,10 +102,16 @@ export default async function Image({
             position: 'absolute',
             bottom: 56,
             display: 'flex',
+            alignItems: 'center',
+            gap: 12,
             fontSize: 32,
           }}
         >
-          Adore<span style={{ color: accent }}>You</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={logo} alt="" width={44} height={44} style={{ borderRadius: 9999 }} />
+          <span style={{ display: 'flex' }}>
+            Adore<span style={{ color: accent }}>You</span>
+          </span>
         </div>
       </div>
     ),

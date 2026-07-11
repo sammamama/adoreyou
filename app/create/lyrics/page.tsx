@@ -1,12 +1,12 @@
 'use client';
 
 import { motion, useReducedMotion } from 'motion/react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import CreateProgress from '@/components/CreateProgress';
 import LyricsCanvas from '@/components/LyricsCanvas';
 import Button from '@/components/ui/Button';
+import Wordmark from '@/components/Wordmark';
 import { normalizeSectionLabels } from '@/lib/lyrics';
 import { useDraftStore } from '@/lib/store';
 
@@ -107,9 +107,7 @@ export default function LyricsPage() {
   return (
     <div className="flex flex-1 flex-col">
       <header className="mx-auto w-full max-w-6xl px-6 py-6">
-        <Link href="/" className="font-serif text-2xl">
-          Adore<span className="italic text-accent">You</span>
-        </Link>
+        <Wordmark />
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 pb-32">

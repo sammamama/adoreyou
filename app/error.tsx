@@ -3,16 +3,14 @@
 // Global error boundary — anything unexpected lands here with a retry.
 // Draft state lives in localStorage (decision #8), so nothing is lost.
 
-import Link from 'next/link';
 import Button from '@/components/ui/Button';
+import Wordmark from '@/components/Wordmark';
 
 export default function Error({ reset }: { error: Error; reset: () => void }) {
   return (
     <div className="flex flex-1 flex-col">
       <header className="mx-auto w-full max-w-6xl px-6 py-6">
-        <Link href="/" className="font-serif text-2xl">
-          Adore<span className="italic text-accent">You</span>
-        </Link>
+        <Wordmark />
       </header>
 
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center px-6 pb-32 text-center">

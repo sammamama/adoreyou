@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import CreateProgress from '@/components/CreateProgress';
 import Button from '@/components/ui/Button';
+import Wordmark from '@/components/Wordmark';
 import { useDraftStore } from '@/lib/store';
 import type { Occasion } from '@/types';
 
@@ -192,9 +193,7 @@ export default function PromptForm({ occasion }: { occasion: Occasion }) {
   return (
     <div className="flex flex-1 flex-col">
       <header className="mx-auto w-full max-w-6xl px-6 py-6">
-        <Link href="/" className="font-serif text-2xl">
-          Adore<span className="italic text-accent">You</span>
-        </Link>
+        <Wordmark />
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 pb-32">

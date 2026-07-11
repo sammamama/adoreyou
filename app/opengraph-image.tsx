@@ -1,7 +1,13 @@
 // Landing OG image — blush editorial card, rendered at build. Default font
 // only (no network fetch at build), so the accent word is color, not italic.
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
+
+const logo = `data:image/png;base64,${readFileSync(
+  join(process.cwd(), 'public', 'logo-mark.png')
+).toString('base64')}`;
 
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
@@ -49,8 +55,19 @@ export default function Image() {
           }}
         />
 
-        <div style={{ display: 'flex', fontSize: 40 }}>
-          Adore<span style={{ color: '#E11D48' }}>You</span>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 16,
+            fontSize: 40,
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={logo} alt="" width={56} height={56} style={{ borderRadius: 9999 }} />
+          <span style={{ display: 'flex' }}>
+            Adore<span style={{ color: '#E11D48' }}>You</span>
+          </span>
         </div>
 
         <div

@@ -22,6 +22,17 @@ const WINDOW_MS = 60 * 60 * 1000; // 1 hour
 // only exists to cap Claude spend. Swap for a DB/KV counter if abuse shows up.
 const hits = new Map<string, number[]>();
 
+// Server-side revision counter (same per-instance caveat) — the client sends
+// revisionsUsed for its own UI, but the enforced count lives here.
+const revisions = new Map<string, number[]>();
+
+function recentRevisions(ip: string): number[] {
+  const now = Date.now();
+  const recent = (revisions.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
+  revisions.set(ip, recent);
+  return recent;
+}
+
 function rateLimited(ip: string): boolean {
   const now = Date.now();
   const recent = (hits.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
@@ -132,13 +143,16 @@ export async function POST(req: NextRequest) {
     }
 
     if (isRevision) {
-      const used = body.revisionsUsed ?? 0;
+      // Enforced server-side per IP — the client's revisionsUsed counter is
+      // display-only and can't be reset to dodge the limit.
+      const used = Math.max(body.revisionsUsed ?? 0, recentRevisions(ip).length);
       if (used >= MAX_REVISIONS) {
         return NextResponse.json(
           { data: null, error: `Revision limit reached (${MAX_REVISIONS}).` },
           { status: 400 }
         );
       }
+      revisions.set(ip, [...recentRevisions(ip), Date.now()]);
       if (body.stream) {
         return streamResponse(
           reviseLyricsStream(input, body.currentLyrics!, body.revisionRequest!)
@@ -158,9 +172,10 @@ export async function POST(req: NextRequest) {
     const lyrics = await generateLyrics(input);
     return NextResponse.json({ data: { lyrics }, error: null });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : 'Lyrics generation failed.';
     console.error('lyrics route error:', err);
-    return NextResponse.json({ data: null, error: message }, { status: 500 });
+    return NextResponse.json(
+      { data: null, error: 'Lyrics generation failed — try again.' },
+      { status: 500 }
+    );
   }
 }

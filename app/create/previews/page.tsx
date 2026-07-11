@@ -5,13 +5,13 @@
 // Keep Every Version / Regenerate in New Genre upsells.
 
 import { motion, useReducedMotion } from 'motion/react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import CreateProgress from '@/components/CreateProgress';
 import PreviewPicker, { type PreviewTrack } from '@/components/PreviewPicker';
 import ProcessingView from '@/components/ProcessingView';
 import Button from '@/components/ui/Button';
+import Wordmark from '@/components/Wordmark';
 import { useDraftStore } from '@/lib/store';
 
 const ease = [0.22, 1, 0.36, 1] as const;
@@ -91,9 +91,7 @@ export default function PreviewsPage() {
   return (
     <div className="flex flex-1 flex-col">
       <header className="mx-auto w-full max-w-6xl px-6 py-6">
-        <Link href="/" className="font-serif text-2xl">
-          Adore<span className="italic text-accent">You</span>
-        </Link>
+        <Wordmark />
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 pb-32">

@@ -6,6 +6,7 @@
 
 import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
+import Wordmark from '@/components/Wordmark';
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -30,9 +31,7 @@ export default function Navbar() {
       className="fixed inset-x-0 top-4 z-50 px-4"
     >
       <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-4 rounded-full border border-white/60 bg-white/55 py-2 pl-6 pr-2 shadow-[0_8px_32px_rgba(28,25,23,0.08)] backdrop-blur-xl">
-        <Link href="/" className="font-serif text-xl">
-          Adore<span className="italic text-accent">You</span>
-        </Link>
+        <Wordmark className="text-xl" />
 
         <div className="hidden items-center gap-6 text-sm text-ink/70 sm:flex">
           {LINKS.map((link) => (

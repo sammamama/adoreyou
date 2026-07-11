@@ -10,6 +10,7 @@
 // delivery email to the cron route and locks the reveal page until then.
 
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { generateAccessCode } from '@/lib/access-code';
 import { sendGiftDeliveryEmail, sendGiftSentEmail } from '@/lib/email';
@@ -159,8 +160,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const accessCode = generateAccessCode(song.gifts.map((g) => g.accessCode));
-
   // Upload media to S3 before creating the row — a failed upload fails the
   // whole request (no credit consumed) rather than a gift missing its media.
   let photoKey: string | null = null;
@@ -193,20 +192,59 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const gift = await prisma.gift.create({
-    data: {
-      songId: song.id,
-      senderName,
-      personalMessage,
-      recipientEmail,
-      accessCode,
-      deliverAt,
-      photoKey,
-      photoMime: photoFile?.type ?? null,
-      voiceKey,
-      voiceMime: voiceFile?.type ?? null,
-    },
-  });
+  // Credit re-check + create in one serializable transaction — parallel
+  // requests can't both pass the remaining-credit check and over-spend.
+  let gift;
+  try {
+    gift = await prisma.$transaction(
+      async (tx) => {
+        const gifts = await tx.gift.findMany({
+          where: { songId: song.id },
+          select: { accessCode: true },
+        });
+        if (song.giftCredits - gifts.length <= 0) {
+          throw new Error('NO_CREDITS');
+        }
+        return tx.gift.create({
+          data: {
+            songId: song.id,
+            senderName,
+            personalMessage,
+            recipientEmail,
+            accessCode: generateAccessCode(gifts.map((g) => g.accessCode)),
+            deliverAt,
+            photoKey,
+            photoMime: photoFile?.type ?? null,
+            voiceKey,
+            voiceMime: voiceFile?.type ?? null,
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+  } catch (err) {
+    if (err instanceof Error && err.message === 'NO_CREDITS') {
+      return NextResponse.json(
+        {
+          data: null,
+          error: 'No gift credits left — grab a pack to gift more people.',
+        },
+        { status: 402 }
+      );
+    }
+    // P2034 — serialization conflict with a concurrent gift for this song.
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === 'P2034'
+    ) {
+      return NextResponse.json(
+        { data: null, error: 'Please try that again.' },
+        { status: 409 }
+      );
+    }
+    throw err;
+  }
+  const accessCode = gift.accessCode;
 
   // Immediate gifts email now (best-effort — the gift and its credit already
   // exist, and the creator still gets the link + code to deliver manually).
