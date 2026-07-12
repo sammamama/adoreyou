@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: 'How it works — AdoreYou',
   description:
     'Pick the occasion, share your memories, hear it sung, gift the reveal — how AdoreYou turns your stories into an original song.',
+  alternates: { canonical: '/how-it-works' },
 };
 
 export default function HowItWorksPage() {

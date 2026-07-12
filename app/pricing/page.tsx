@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: 'Pricing — AdoreYou',
   description:
     'One song, one price — $20 USD, shown in your local currency at checkout. Pay once, keep it forever. No subscriptions.',
+  alternates: { canonical: '/pricing' },
 };
 
 export default function PricingPage() {

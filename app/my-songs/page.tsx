@@ -11,7 +11,10 @@ import MySongsDashboard, {
 } from '@/components/MySongsDashboard';
 import type { Track } from '@/types';
 
-export const metadata = { title: 'Your songs — AdoreYou' };
+export const metadata = {
+  title: 'Your songs — AdoreYou',
+  robots: { index: false, follow: false },
+};
 
 async function songsFor(email: string): Promise<DashboardSong[]> {
   const songs = await prisma.song.findMany({

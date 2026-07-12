@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: 'Terms of service — AdoreYou',
   description:
     'The terms governing your use of AdoreYou: licensing, refunds, acceptable use, and liability.',
+  alternates: { canonical: '/terms' },
 };
 
 const SECTIONS = [

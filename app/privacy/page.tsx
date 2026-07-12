@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: 'Privacy policy — AdoreYou',
   description:
     'What AdoreYou collects, why, who we share it with, and how to get your data deleted.',
+  alternates: { canonical: '/privacy' },
 };
 
 const SECTIONS = [

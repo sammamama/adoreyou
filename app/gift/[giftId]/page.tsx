@@ -13,11 +13,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { giftId } = await params;
   const gift = await getGiftMeta(giftId);
 
+  // Private, code-protected pages: keep OG tags for link previews but stay
+  // out of search results.
+  const robots = { index: false, follow: false };
+
   if (!gift) {
     return {
       title: 'Someone made you a song — AdoreYou',
       description:
         'A one-of-a-kind song, made just for you. Enter your code to open it.',
+      robots,
     };
   }
 
@@ -32,6 +37,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description,
+    robots,
     openGraph: { title, description, type: 'website' },
     twitter: { card: 'summary_large_image', title, description },
   };
