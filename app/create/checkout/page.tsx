@@ -5,7 +5,7 @@
 // No OTP — just visual confirmation to catch typos. Order summary shows
 // base + selected upsells; one Stripe Checkout session covers everything.
 
-import { motion, useReducedMotion } from 'motion/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import Wordmark from '@/components/Wordmark';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
@@ -41,10 +41,20 @@ function CheckoutPageInner() {
   const [hydrated, setHydrated] = useState(false);
   const [email, setEmail] = useState('');
   const [confirming, setConfirming] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => setHydrated(true), []);
+
+  useEffect(() => {
+    if (!confirming) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !loading) setConfirming(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [confirming, loading]);
 
   const entrance = (delay: number) => ({
     initial: reduced
@@ -152,49 +162,30 @@ function CheckoutPageInner() {
               </motion.p>
             )}
 
-            {/* Email — enter, then confirm twice */}
+            {/* Email — enter, then confirm in a modal before paying */}
             <motion.section {...entrance(0.07)} className="mt-10">
-              {!confirming ? (
-                <>
-                  <label
-                    htmlFor="email"
-                    className="block font-serif text-2xl"
-                  >
-                    Where should we <span className="italic text-accent">send</span>{' '}
-                    it?
-                  </label>
-                  <p className="mt-2 text-sm text-ink/60">
-                    We&rsquo;ll send your song here — no account needed.
-                  </p>
-                  <input
-                    id="email"
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && emailValid) setConfirming(true);
-                    }}
-                    placeholder="you@example.com"
-                    className="mt-4 h-13 w-full rounded-full border border-ink/15 bg-white px-6 text-base outline-none transition-colors duration-200 focus:border-accent"
-                  />
-                </>
-              ) : (
-                <div className="rounded-2xl border border-ink/10 bg-white p-6">
-                  <p className="text-ink/80">
-                    We&rsquo;ll send your song to{' '}
-                    <strong className="font-semibold">{email.trim()}</strong>{' '}
-                    — correct?
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setConfirming(false)}
-                    className="mt-3 text-sm text-accent underline underline-offset-4 hover:text-rose-700"
-                  >
-                    Edit email
-                  </button>
-                </div>
-              )}
+              <label
+                htmlFor="email"
+                className="block font-serif text-2xl"
+              >
+                Where should we <span className="italic text-accent">send</span>{' '}
+                it?
+              </label>
+              <p className="mt-2 text-sm text-ink/60">
+                We&rsquo;ll send your song here — no account needed.
+              </p>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && emailValid) setConfirming(true);
+                }}
+                placeholder="you@example.com"
+                className="mt-4 h-13 w-full rounded-full border border-ink/15 bg-white px-6 text-base outline-none transition-colors duration-200 focus:border-accent"
+              />
             </motion.section>
 
             {/* Order summary */}
@@ -224,17 +215,8 @@ function CheckoutPageInner() {
               </div>
             </motion.section>
 
-            {error && (
-              <p className="mt-4 text-sm text-accent" role="alert">
-                {error}
-              </p>
-            )}
-
-            <motion.div
-              {...entrance(0.21)}
-              className="mt-12 flex items-center justify-end gap-4"
-            >
-              {!confirming ? (
+            <motion.div {...entrance(0.21)} className="mt-12">
+              <div className="flex items-center justify-end gap-4">
                 <Button
                   disabled={!emailValid}
                   onClick={() => setConfirming(true)}
@@ -242,18 +224,106 @@ function CheckoutPageInner() {
                 >
                   Continue
                 </Button>
-              ) : (
-                <Button
-                  disabled={loading}
-                  onClick={() => void pay()}
-                  className={loading ? 'cursor-not-allowed opacity-40' : ''}
-                >
-                  {loading
-                    ? 'Taking you to payment...'
-                    : `Pay ${usd(total)} USD`}
-                </Button>
-              )}
+              </div>
             </motion.div>
+
+            {/* Confirm modal — email check + terms + pay */}
+            <AnimatePresence>
+              {confirming && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-4 backdrop-blur-sm sm:items-center"
+                  onClick={() => !loading && setConfirming(false)}
+                >
+                  <motion.div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Confirm your email and pay"
+                    initial={
+                      reduced ? { opacity: 0 } : { opacity: 0, y: 24, scale: 0.98 }
+                    }
+                    animate={
+                      reduced ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }
+                    }
+                    exit={
+                      reduced ? { opacity: 0 } : { opacity: 0, y: 24, scale: 0.98 }
+                    }
+                    transition={{ duration: 0.4, ease }}
+                    className="w-full max-w-md rounded-3xl bg-white p-8 shadow-xl"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h2 className="font-serif text-3xl">
+                      One last <span className="italic text-accent">check</span>
+                    </h2>
+                    <p className="mt-2 text-sm text-ink/60">
+                      We&rsquo;ll send{' '}
+                      {recipientName ? `${recipientName}'s` : 'your'} song to
+                    </p>
+                    <p className="mt-3 break-all rounded-xl border border-ink/10 bg-ink/3 px-4 py-3 font-medium">
+                      {email.trim()}
+                    </p>
+
+                    <label className="mt-5 flex cursor-pointer items-start gap-3 text-sm text-ink/60">
+                      <input
+                        type="checkbox"
+                        checked={agreed}
+                        onChange={(e) => setAgreed(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-[var(--accent)]"
+                      />
+                      <span>
+                        I agree to the{' '}
+                        <a
+                          href="/terms"
+                          target="_blank"
+                          className="underline underline-offset-4 text-accent"
+                        >
+                          Terms of Service
+                        </a>{' '}
+                        and{' '}
+                        <a
+                          href="/privacy"
+                          target="_blank"
+                          className="underline underline-offset-4 text-accent"
+                        >
+                          Privacy Policy
+                        </a>
+                      </span>
+                    </label>
+
+                    {error && (
+                      <p className="mt-4 text-sm text-accent" role="alert">
+                        {error}
+                      </p>
+                    )}
+
+                    <div className="mt-6 flex items-center gap-3">
+                      <Button
+                        disabled={loading || !agreed}
+                        onClick={() => void pay()}
+                        className={
+                          loading || !agreed ? 'cursor-not-allowed opacity-40' : ''
+                        }
+                      >
+                        {loading
+                          ? 'Taking you to payment...'
+                          : `Pay ${usd(total)} USD`}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        disabled={loading}
+                        onClick={() => setConfirming(false)}
+                      >
+                        Edit email
+                      </Button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </>
         )}
       </main>

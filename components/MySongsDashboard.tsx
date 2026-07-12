@@ -6,10 +6,10 @@
 // play, gift button (same GiftModal as Song Ready), sent gifts + remaining
 // credits.
 
-import { motion, useReducedMotion } from 'motion/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import GiftModal, { GiftShareBox } from '@/components/GiftModal';
 import SongPlayer from '@/components/SongPlayer';
 import Button from '@/components/ui/Button';
@@ -40,7 +40,7 @@ export type DashboardSong = {
 const inputClasses =
   'w-full rounded-xl border border-ink/15 bg-white px-4 py-3 text-base outline-none transition-colors duration-200 placeholder:text-ink/30 focus:border-accent';
 
-function LoginForm() {
+function LoginForm({ onCancel }: { onCancel?: () => void }) {
   const router = useRouter();
   const reduced = useReducedMotion();
 
@@ -49,6 +49,16 @@ function LoginForm() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    if (!confirmOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setConfirmOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [confirmOpen]);
 
   const post = async (url: string, body: object) => {
     const res = await fetch(url, {
@@ -67,6 +77,7 @@ function LoginForm() {
     setBusy(true);
     try {
       await post('/api/auth/request-code', { email });
+      setConfirmOpen(false);
       setStep('code');
       setCode('');
     } catch (err) {
@@ -104,7 +115,10 @@ function LoginForm() {
           className="mt-8 space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
-            if (email.trim() && !busy) void requestCode();
+            if (email.trim() && !busy) {
+              setError(null);
+              setConfirmOpen(true);
+            }
           }}
         >
           <p className="text-sm text-ink/60">
@@ -124,13 +138,20 @@ function LoginForm() {
               {error}
             </p>
           )}
-          <Button
-            type="submit"
-            disabled={!email.trim() || busy}
-            className={!email.trim() || busy ? 'cursor-not-allowed opacity-40' : ''}
-          >
-            {busy ? 'Sending...' : 'Send my code'}
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              type="submit"
+              disabled={!email.trim() || busy}
+              className={!email.trim() || busy ? 'cursor-not-allowed opacity-40' : ''}
+            >
+              {busy ? 'Sending...' : 'Send my code'}
+            </Button>
+            {onCancel && (
+              <Button variant="ghost" type="button" disabled={busy} onClick={onCancel}>
+                Cancel
+              </Button>
+            )}
+          </div>
         </form>
       ) : (
         <form
@@ -181,6 +202,64 @@ function LoginForm() {
           </div>
         </form>
       )}
+
+      <AnimatePresence>
+        {confirmOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-4 backdrop-blur-sm sm:items-center"
+            onClick={() => !busy && setConfirmOpen(false)}
+          >
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Confirm your email"
+              initial={reduced ? { opacity: 0 } : { opacity: 0, y: 24, scale: 0.98 }}
+              animate={reduced ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
+              exit={reduced ? { opacity: 0 } : { opacity: 0, y: 24, scale: 0.98 }}
+              transition={{ duration: 0.4, ease }}
+              className="w-full max-w-md rounded-3xl bg-white p-8 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="font-serif text-3xl">
+                Is this <span className="italic text-accent">you</span>?
+              </h2>
+              <p className="mt-2 text-sm text-ink/60">
+                We&rsquo;ll send a 6-digit sign-in code to
+              </p>
+              <p className="mt-3 break-all rounded-xl border border-ink/10 bg-ink/3 px-4 py-3 font-medium">
+                {email.trim()}
+              </p>
+              {error && (
+                <p className="mt-3 text-sm text-accent" role="alert">
+                  {error}
+                </p>
+              )}
+              <div className="mt-6 flex items-center gap-3">
+                <Button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void requestCode()}
+                  className={busy ? 'cursor-not-allowed opacity-40' : ''}
+                >
+                  {busy ? 'Sending...' : 'Yes, send my code'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setConfirmOpen(false)}
+                >
+                  Edit email
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
@@ -297,8 +376,15 @@ export default function MySongsDashboard({
   const router = useRouter();
   const reduced = useReducedMotion();
   const [giftSongId, setGiftSongId] = useState<string | null>(null);
+  // Email the user was signed in as when they clicked "Use a different
+  // email" — once verification swaps the session, the prop changes and the
+  // dashboard renders for the new address.
+  const [switchFrom, setSwitchFrom] = useState<string | null>(null);
 
   if (!email) return <LoginForm />;
+  if (switchFrom === email) {
+    return <LoginForm onCancel={() => setSwitchFrom(null)} />;
+  }
 
   const giftSong = songs.find((s) => s.id === giftSongId);
 
@@ -312,7 +398,16 @@ export default function MySongsDashboard({
         <h1 className="font-serif text-4xl leading-tight sm:text-5xl">
           Your <span className="italic text-accent">songs</span>
         </h1>
-        <p className="mt-2 text-sm text-ink/50">{email}</p>
+        <p className="mt-2 text-sm text-ink/50">
+          {email}{' '}
+          <button
+            type="button"
+            onClick={() => setSwitchFrom(email)}
+            className="ml-2 text-accent underline underline-offset-4 transition-opacity duration-200 hover:opacity-70"
+          >
+            Use a different email
+          </button>
+        </p>
       </motion.div>
 
       {songs.length === 0 ? (

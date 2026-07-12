@@ -109,12 +109,26 @@ export default function Home() {
 
       <footer className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-8 text-sm text-ink/40">
         <span>AdoreYou — songs for the people you love</span>
-        <Link
-          href="/my-songs"
-          className="underline underline-offset-4 transition-colors duration-200 hover:text-ink/70"
-        >
-          Find my songs
-        </Link>
+        <span className="flex flex-wrap items-center gap-4">
+          <Link
+            href="/privacy"
+            className="underline underline-offset-4 transition-colors duration-200 hover:text-ink/70"
+          >
+            Privacy
+          </Link>
+          <Link
+            href="/terms"
+            className="underline underline-offset-4 transition-colors duration-200 hover:text-ink/70"
+          >
+            Terms
+          </Link>
+          <Link
+            href="/my-songs"
+            className="underline underline-offset-4 transition-colors duration-200 hover:text-ink/70"
+          >
+            Find my songs
+          </Link>
+        </span>
       </footer>
     </div>
   );

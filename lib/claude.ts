@@ -6,26 +6,22 @@ import { normalizeSectionLabels } from '@/lib/lyrics';
 import { getOccasion, MASTER_PROMPTS } from '@/lib/occasions';
 import type { PromptInputs } from '@/types';
 
-const MODEL = 'claude-fable-5';
-// Fable 5's safety classifiers can occasionally decline benign requests;
-// server-side fallback transparently re-serves the call on Opus 4.8.
-const FALLBACK_MODEL = 'claude-opus-4-8';
+const MODEL = 'claude-sonnet-4-6';
 
 const client = new Anthropic();
 
-// System prompt — verbatim from AGENTS.md "Lyrics Generation Prompt".
 const SYSTEM_PROMPT = `You are a songwriter who writes deeply personal, emotionally resonant song lyrics. You receive structured inputs about a relationship and must transform them into original lyrics.
 
 ## Input Schema
 
 You will receive these fields (ordered by weight — higher = more influence on output):
 
-### Tier 1 — Shapes the entire song
-- \`memory\`: The core shared experience. This becomes the PRIMARY imagery source. Every verse should echo or refract this memory. Extract sensory details (sights, sounds, textures, smells) and weave them through the song.
+### Tier 1 — The song IS this material
+- \`memory\`: The sender's own stories, as a list, in their own words. This is the entire substance of the song — center every section on it. Find the one or two strongest stories and build the song around them; weaker ones contribute single lines or nothing. Extract sensory details (sights, sounds, textures, smells) and weave them through. Prefer the sender's exact phrasing over your paraphrase — their plain words carry more weight than anything you invent.
 - \`tone\`: Emotional color of the song. This controls:
   - Word choice (warm → soft consonants, gentle words; raw → short punchy syllables)
   - Rhythm (nostalgic → slower phrasing, longer lines; playful → syncopation, short lines)
-  - Metaphor register (bittersweet → autumn/dusk/rain; joyful → light/morning/bloom)
+  - Tone does NOT control imagery. All imagery comes from the memory itself — never from stock associations with a mood.
 
 ### Tier 2 — Shapes structure and perspective
 - \`relationship\`: Who this is about. Controls:
@@ -41,7 +37,7 @@ You will receive these fields (ordered by weight — higher = more influence on 
   - no occasion → pure expression, no structural constraint
 
 ### Tier 3 — Adds texture (use if provided, don't force if absent)
-- \`details\`: Small facts about the person (habits, phrases they say, objects associated with them). Sprinkle these as lyrical Easter eggs — never list them, let them surface naturally in lines.
+- \`details\`: Small facts about the person (habits, phrases they say, objects associated with them). If the sender quotes something the person actually says — a catchphrase, a pet name, a private joke — put it in the song verbatim; nothing lands harder than their own words sung back. Never list details; let them surface naturally in lines.
 - \`music_style\`: Genre hint. Adjusts:
   - Line length and syllable density (rap → dense, ballad → spacious)
   - Repetition patterns (pop → hook-heavy chorus, folk → storytelling verses)
@@ -52,11 +48,17 @@ You will receive these fields (ordered by weight — higher = more influence on 
 1. **Structure**: Verse 1 → Pre-Chorus (optional) → Chorus → Verse 2 → Chorus → Bridge → Final Chorus. Label each section in square brackets on its own line — [Verse 1], [Chorus], [Bridge]. Plain text only: no markdown, no asterisks, no bold.
 2. **Chorus**: Must be repeatable and singable. Under 6 lines. Contains the emotional thesis of the song.
 3. **Bridge**: Must shift perspective, time, or emotional register. This is the "turn" — surprise the listener.
-4. **Imagery over declaration**: Never write "I love you so much." Instead, show it: "I'd learn the whole train map again / just to get lost with you one more time."
-5. **Specificity is everything**: Generic = forgettable. The memory details ARE the song. "That vending machine coffee at 2am" hits harder than "all those late nights."
-6. **No clichés without subversion**: If you use "stars," "heart," "forever" — twist them. "You rearranged my constellations" not "you are my star."
-7. **Consistent metaphor thread**: Pick ONE metaphor world from the memory (travel → maps/roads/tickets, cooking → heat/ingredients/seasons) and let it recur across sections without overusing it.
-8. **Line feel**: Each line should feel good spoken aloud. Read it rhythmically. Cut any line that exists only to rhyme — meaning > rhyme scheme. Slant rhyme and internal rhyme preferred over forced perfect rhyme.
+4. **Rhyme scheme**: Verses rhyme ABAB. Shift the scheme in the chorus and bridge (AABB or ABCB) so the section change is felt in the rhyme. Slant rhyme and internal rhyme preferred over forced perfect rhyme — and never bend a line's meaning to land a rhyme. Meaning beats rhyme, always.
+5. **Plain beats ornate**: Avoiding cliché does NOT mean reaching for complicated words. If something can be said simply and directly, say it simply and directly. The most devastating line in the song should be the plainest one. Understatement over sentimentality.
+6. **Imagery over declaration**: Prefer to show it through a specific moment from the memory. if something is not explictly mention it is allowed to user generic stuff like "I love you so much"
+7. **Specificity is everything**: Generic = forgettable. The small real details from the memory ARE the song — a named street, an exact time, the actual food, the real weather.
+8. **Banned words and phrases**: tapestry, embers, whisper/whispered, echoes, souls intertwined, journey, through it all, every step of the way, shadows and light, come what may, heart of gold, guiding light, guiding star, chapter of our lives, dance in the rain. If tempted by "stars," "heart," or "forever" — twist them into something only this sender and recipient would recognize, or cut them.
+9. **Metaphor thread**: At most ONE metaphor world, drawn from the memory itself, recurring lightly across sections. If the memories are strong enough on their own, skip metaphor entirely — a plain retelling of a real moment often hits hardest.
+10. **The name**: Use the recipient's name at most once, at the emotional peak — or not at all. The song must be unmistakably about them even without the name.
+11. **Never reuse examples**: Do not reuse any example image, line, or phrase from these instructions in the lyrics. Every image must come from this sender's memory.
+12. **Line feel**: Each line should feel good spoken aloud. Read it rhythmically. Cut any line that exists only to rhyme.
+
+Before finalizing: delete or rewrite any line that could appear in a song about somebody else. Every section must contain at least one detail that could only be about this person.
 
 Respond with the lyrics only — labelled sections, no commentary before or after.`;
 
@@ -78,10 +80,11 @@ function buildUserPrompt({ occasion, promptInputs, genre }: LyricsInput): string
   const { recipientName, pronunciation, relationship, answers } = promptInputs;
   const occ = getOccasion(occasion);
 
-  // memory (Tier 1) — combined prompt answers, concatenated stories
+  // memory (Tier 1) — prompt answers as a list, so the model can tell
+  // strong stories from filler instead of parsing one concatenated blob
   const memory = answers
-    .map((a) => `${a.prompt} ${a.answer}`)
-    .join(' — ');
+    .map((a) => `- ${a.prompt} ${a.answer}`)
+    .join('\n');
 
   // tone (Tier 1) — derived from occasion + genre
   const tone = `${occ?.defaultMood ?? 'heartfelt'}, with a ${genre} feel`;
@@ -96,7 +99,9 @@ function buildUserPrompt({ occasion, promptInputs, genre }: LyricsInput): string
 
   return `Write song lyrics with these inputs:
 
-memory: "${memory}"
+memory:
+${memory}
+
 tone: "${tone}"
 relationship: "${relationship}, recipient name: ${recipientName}${pron}"
 occasion: "${occ?.name ?? occasion}"
@@ -110,8 +115,6 @@ async function callClaude(
   const response = await client.beta.messages.create({
     model: MODEL,
     max_tokens: 16000,
-    betas: ['server-side-fallback-2026-06-01'],
-    fallbacks: [{ model: FALLBACK_MODEL }],
     system: SYSTEM_PROMPT,
     messages,
   });
@@ -139,8 +142,6 @@ function streamClaude(
   const stream = client.beta.messages.stream({
     model: MODEL,
     max_tokens: 16000,
-    betas: ['server-side-fallback-2026-06-01'],
-    fallbacks: [{ model: FALLBACK_MODEL }],
     system: SYSTEM_PROMPT,
     messages,
   });
