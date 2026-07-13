@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { Instrument_Sans, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 
@@ -39,6 +40,9 @@ export const metadata: Metadata = {
     title,
     description,
   },
+  verification: {
+    google: "B-eD8XN-IVp6BPlNYiAm01uAGbOVbay35aSm_5ivtZU",
+  },
 };
 
 export default function RootLayout({
@@ -52,6 +56,7 @@ export default function RootLayout({
       className={`${instrumentSans.variable} ${instrumentSerif.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
+      <GoogleAnalytics gaId="G-87PREZBGR9" />
     </html>
   );
 }

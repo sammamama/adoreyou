@@ -15,6 +15,7 @@
     "@aws-sdk/cloudfront-signer": "^3.1082.0",
     "@aws-sdk/s3-request-presigner": "^3.1084.0",
     "@hiseb/confetti": "^2.1.0",
+    "@next/third-parties": "^16.2.10",
     "@paper-design/shaders-react": "^0.0.77",
     "@prisma/client": "^6.19.3",
     "@react-three/drei": "^10.7.7",
