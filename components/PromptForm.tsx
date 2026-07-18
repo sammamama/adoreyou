@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import CreateProgress from '@/components/CreateProgress';
 import Button from '@/components/ui/Button';
 import Wordmark from '@/components/Wordmark';
+import { PROMPT_PLACEHOLDERS } from '@/lib/occasions';
 import { useDraftStore } from '@/lib/store';
 import type { Occasion } from '@/types';
 
@@ -328,7 +329,10 @@ export default function PromptForm({ occasion }: { occasion: Occasion }) {
                                 value={draftAnswer}
                                 onChange={(e) => setDraftAnswer(e.target.value)}
                                 rows={4}
-                                placeholder="Tell the story..."
+                                placeholder={
+                                  PROMPT_PLACEHOLDERS[prompt] ??
+                                  'Tell the story...'
+                                }
                                 className={`mt-3 resize-none ${inputClasses}`}
                               />
                               <div className="mt-3 flex items-center justify-between gap-2">

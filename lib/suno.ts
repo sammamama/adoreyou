@@ -1,8 +1,3 @@
-// Suno API wrapper + style prompt builder.
-// Targets the sunoapi.org-compatible REST shape (POST /api/v1/generate,
-// GET /api/v1/generate/record-info?taskId=). SUNO_API_BASE_URL makes the
-// host swappable; keep all Suno HTTP calls in this file so a future
-// Udio backend only replaces this module (decision #3).
 
 import type { StyleInputs, Track } from '@/types';
 

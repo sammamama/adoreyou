@@ -113,6 +113,7 @@ export async function POST(req: NextRequest) {
       verseCount: upsells.songLength,
       keepEveryVersion: upsells.keepEveryVersion,
       regenGenre: upsells.regenGenre,
+      selectedTrackIndex: body.selectedTrackIndex!,
     });
 
     await prisma.song.update({

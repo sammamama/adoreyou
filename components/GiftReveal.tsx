@@ -32,7 +32,7 @@ type EntryData = {
 };
 
 type RevealData = EntryData & {
-  personalMessage: string;
+  personalMessage: string | null;
   lyrics: string;
   audioUrl: string;
   downloadUrl: string;
@@ -507,6 +507,7 @@ export default function GiftReveal({ giftId }: { giftId: string }) {
   const [failCount, setFailCount] = useState(0);
   const [checking, setChecking] = useState(false);
   const [opening, setOpening] = useState(false);
+  const [nameSettled, setNameSettled] = useState(false);
 
   // Player state
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -642,6 +643,23 @@ export default function GiftReveal({ giftId }: { giftId: string }) {
       : { opacity: 1, y: 0, filter: 'blur(0px)' },
     transition: { duration: 0.6, ease, delay },
   });
+
+  // Everything below the recipient name — waits for the name to finish
+  // settling at the top (letter → name handoff) before cascading in, instead
+  // of firing on a fixed delay guess that fights the letter animation.
+  const postNameEntrance = (delay: number) => {
+    const hidden = reduced
+      ? { opacity: 0 }
+      : { opacity: 0, y: 20, filter: 'blur(30px)' };
+    const shown = reduced
+      ? { opacity: 1 }
+      : { opacity: 1, y: 0, filter: 'blur(0px)' };
+    return {
+      initial: hidden,
+      animate: nameSettled ? shown : hidden,
+      transition: { duration: 0.6, ease, delay },
+    };
+  };
 
   return (
     <div
@@ -934,13 +952,18 @@ export default function GiftReveal({ giftId }: { giftId: string }) {
                       : { opacity: 1, y: 0, filter: 'blur(0px)' }
                   }
                   transition={{ duration: 0.5, ease, delay: 0.2 + i * 0.06 }}
+                  onAnimationComplete={
+                    i === reveal.recipientName.length - 1
+                      ? () => setNameSettled(true)
+                      : undefined
+                  }
                 >
                   {ch}
                 </motion.span>
               ))}
             </h1>
             <motion.p
-              {...entrance(0.4)}
+              {...postNameEntrance(0)}
               className="mt-1.5 text-center font-serif text-base italic text-ink/60"
             >
               this song is yours
@@ -949,7 +972,7 @@ export default function GiftReveal({ giftId }: { giftId: string }) {
             {/* Sender media — photo + voice note, before the song */}
             {(reveal.photoUrl || reveal.voiceNoteUrl) && (
               <motion.div
-                {...entrance(0.45)}
+                {...postNameEntrance(0.08)}
                 className="mx-auto mt-3 flex w-full max-w-xl items-center justify-center gap-4"
               >
                 {reveal.photoUrl && (
@@ -976,22 +999,24 @@ export default function GiftReveal({ giftId }: { giftId: string }) {
             )}
 
             {/* Personal message — compact so everything fits one screen */}
-            <motion.blockquote
-              {...entrance(0.5)}
-              className="mx-auto mt-3 max-w-xl text-center"
-            >
-              <p className="font-serif text-base italic leading-relaxed sm:text-lg">
-                &ldquo;{reveal.personalMessage}&rdquo;{' '}
-                <span className="text-sm not-italic text-ink/50">
-                  — {reveal.senderName}
-                </span>
-              </p>
-            </motion.blockquote>
+            {reveal.personalMessage && (
+              <motion.blockquote
+                {...postNameEntrance(0.14)}
+                className="mx-auto mt-3 max-w-xl text-center"
+              >
+                <p className="font-serif text-base italic leading-relaxed sm:text-lg">
+                  &ldquo;{reveal.personalMessage}&rdquo;{' '}
+                  <span className="text-sm not-italic text-ink/50">
+                    — {reveal.senderName}
+                  </span>
+                </p>
+              </motion.blockquote>
+            )}
 
             {/* Player + scroll-synced lyrics — the lyrics box takes the
                 remaining viewport and scrolls internally */}
             <motion.div
-              {...entrance(0.55)}
+              {...postNameEntrance(0.2)}
               className={`mt-4 flex min-h-0 flex-1 flex-col rounded-3xl border border-ink/10 p-5 shadow-sm backdrop-blur-sm sm:p-6 ${somber ? 'bg-white/5' : 'bg-white/80'}`}
             >
               <Visualizer playing={playing} accent={accent} />
@@ -1073,7 +1098,7 @@ export default function GiftReveal({ giftId }: { giftId: string }) {
             </motion.div>
 
             <motion.p
-              {...entrance(0.7)}
+              {...postNameEntrance(0.32)}
               className="mt-2.5 pb-3 text-center text-xs text-ink/40"
             >
               Made with <span className="font-serif italic">love</span> at{' '}

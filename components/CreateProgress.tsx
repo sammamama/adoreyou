@@ -6,6 +6,7 @@
 const STEPS = [
   { key: 'story', label: 'Story' },
   { key: 'style', label: 'Style' },
+  { key: 'language', label: 'Language' },
   { key: 'lyrics', label: 'Lyrics' },
   { key: 'length', label: 'Length' },
   { key: 'preview', label: 'Preview' },

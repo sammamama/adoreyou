@@ -44,7 +44,8 @@ model Gift {
   songId          String
   recipientEmail  String? // nullable — creator may share link manually instead
   senderName      String // shown on the reveal page + delivery email ("{sender} made you a song")
-  personalMessage String
+  personalMessage String? // optional — reveal page and email skip the quote block when absent
+  trackIndex      Int? // which unlocked track this gift plays — null = the song's selected track
   accessCode      String // 4-digit code, unique per gift
   sentAt          DateTime?
   deliverAt       DateTime? // scheduled unwrap moment — email sends + page unlocks then; null = immediate

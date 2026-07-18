@@ -24,7 +24,13 @@ export async function GET(
   const song = gift?.song;
   const isPaid = song?.status === 'paid' || song?.status === 'done';
   const tracks = (song?.tracks ?? []) as unknown as Track[];
+  // Same resolution as the reveal route — the gift's own pick leads.
+  const picked =
+    gift && gift.trackIndex !== null && tracks[gift.trackIndex]?.unlocked
+      ? tracks[gift.trackIndex]
+      : undefined;
   const track =
+    picked ??
     tracks.find((t) => t.sunoTrackId === song?.selectedTrackId && t.unlocked) ??
     tracks.find((t) => t.unlocked);
 

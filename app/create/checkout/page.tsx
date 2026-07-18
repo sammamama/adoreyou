@@ -28,8 +28,12 @@ function CheckoutPageInner() {
   const reduced = useReducedMotion();
   const router = useRouter();
   // Stripe sends the user back here with ?canceled=1 when they abandon
-  // payment — nothing was charged, the order is intact.
-  const canceled = useSearchParams().has('canceled');
+  // payment — nothing was charged, the order is intact. songId + track are
+  // echoed back too so the order survives a lost or clobbered local draft.
+  const searchParams = useSearchParams();
+  const canceled = searchParams.has('canceled');
+  const urlSongId = searchParams.get('songId');
+  const urlTrack = searchParams.get('track');
 
   const songId = useDraftStore((s) => s.songId);
   const recipientName = useDraftStore((s) => s.recipientName);
@@ -37,6 +41,7 @@ function CheckoutPageInner() {
   const selectedTrackId = useDraftStore((s) => s.selectedTrackId);
   const keepEveryVersion = useDraftStore((s) => s.keepEveryVersion);
   const regenGenre = useDraftStore((s) => s.regenGenre);
+  const update = useDraftStore((s) => s.update);
 
   const [hydrated, setHydrated] = useState(false);
   const [email, setEmail] = useState('');
@@ -46,6 +51,35 @@ function CheckoutPageInner() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => setHydrated(true), []);
+
+  // Returning from Stripe with a draft that doesn't match the order (lost
+  // localStorage, stale draft from an older song) — trust the URL, restore
+  // the order, and drop upsell flags the stale draft can't vouch for.
+  useEffect(() => {
+    if (!hydrated || !canceled || !urlSongId) return;
+    if (songId === urlSongId) return;
+    const track = Number(urlTrack);
+    update({
+      songId: urlSongId,
+      selectedTrackId: Number.isInteger(track) ? track : null,
+      keepEveryVersion: false,
+      regenGenre: null,
+    });
+  }, [hydrated, canceled, urlSongId, urlTrack, songId, update]);
+
+  // Browser-back from Stripe can restore this page from the bfcache mid
+  // "Taking you to payment..." — reset so the user isn't stuck on a dead
+  // spinner with a disabled button.
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        setLoading(false);
+        setConfirming(false);
+      }
+    };
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
+  }, []);
 
   useEffect(() => {
     if (!confirming) return;
@@ -216,7 +250,14 @@ function CheckoutPageInner() {
             </motion.section>
 
             <motion.div {...entrance(0.21)} className="mt-12">
-              <div className="flex items-center justify-end gap-4">
+              <div className="flex items-center justify-between gap-4">
+                <button
+                  type="button"
+                  onClick={() => router.push('/create/previews')}
+                  className="rounded-full px-4 py-2 text-sm text-ink/60 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                >
+                  Back
+                </button>
                 <Button
                   disabled={!emailValid}
                   onClick={() => setConfirming(true)}

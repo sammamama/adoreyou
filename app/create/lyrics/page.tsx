@@ -12,6 +12,9 @@ import { useDraftStore } from '@/lib/store';
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
+// Mirrors the server's per-IP fresh-generation cap in /api/lyrics.
+const MAX_GENERATIONS = 3;
+
 export default function LyricsPage() {
   const router = useRouter();
   const reduced = useReducedMotion();
@@ -22,7 +25,10 @@ export default function LyricsPage() {
   const relationship = useDraftStore((s) => s.relationship);
   const promptAnswers = useDraftStore((s) => s.promptAnswers);
   const genre = useDraftStore((s) => s.genre);
+  const language = useDraftStore((s) => s.language);
   const lyrics = useDraftStore((s) => s.lyrics);
+  const generationsUsed = useDraftStore((s) => s.generationsUsed);
+  const generatedLyrics = useDraftStore((s) => s.generatedLyrics);
   const revisionsUsed = useDraftStore((s) => s.revisionsUsed);
   const update = useDraftStore((s) => s.update);
 
@@ -60,6 +66,7 @@ export default function LyricsPage() {
         body: JSON.stringify({
           occasion,
           genre,
+          language,
           stream: true,
           promptInputs: {
             recipientName,
@@ -92,9 +99,13 @@ export default function LyricsPage() {
       }
       text = text.trim();
       if (!text) throw new Error('Something went wrong — try again.');
+      const normalized = normalizeSectionLabels(text);
       update({
-        lyrics: normalizeSectionLabels(text),
-        ...(revisionRequest ? { revisionsUsed: revisionsUsed + 1 } : {}),
+        lyrics: normalized,
+        generatedLyrics: normalized,
+        ...(revisionRequest
+          ? { revisionsUsed: revisionsUsed + 1 }
+          : { generationsUsed: generationsUsed + 1 }),
       });
     } catch (err) {
       if (revisionRequest) update({ lyrics: before });
@@ -154,6 +165,23 @@ export default function LyricsPage() {
                       revising={loading === 'revise'}
                     />
                   </>
+                ) : generationsUsed >= MAX_GENERATIONS ? (
+                  /* All attempts spent — offer the last version back so an
+                     erased canvas isn't a dead end. */
+                  <div className="rounded-2xl border border-dashed border-ink/15 bg-white/50 p-8 text-center">
+                    <p className="text-ink/60">
+                      You&rsquo;ve used all {MAX_GENERATIONS} lyric
+                      generations for this song.
+                    </p>
+                    {generatedLyrics && (
+                      <Button
+                        onClick={() => update({ lyrics: generatedLyrics })}
+                        className="mt-5"
+                      >
+                        Restore my lyrics
+                      </Button>
+                    )}
+                  </div>
                 ) : (
                   <div className="rounded-2xl border border-dashed border-ink/15 bg-white/50 p-8 text-center">
                     <p className="text-ink/60">
@@ -173,6 +201,12 @@ export default function LyricsPage() {
                         ? 'Writing your song...'
                         : 'Generate lyrics'}
                     </Button>
+                    {generationsUsed > 0 && (
+                      <p className="mt-3 text-xs text-ink/40">
+                        {MAX_GENERATIONS - generationsUsed} of{' '}
+                        {MAX_GENERATIONS} generations left
+                      </p>
+                    )}
                   </div>
                 )}
                 {error && (
@@ -182,17 +216,24 @@ export default function LyricsPage() {
                 )}
               </motion.section>
 
-              {/* Continue */}
-              {lyrics && (
-                <motion.div
-                  {...entrance(0.21)}
-                  className="mt-12 flex justify-end"
+              {/* Navigation */}
+              <motion.div
+                {...entrance(0.21)}
+                className="mt-12 flex items-center justify-between gap-4"
+              >
+                <button
+                  type="button"
+                  onClick={() => router.push('/create/language')}
+                  className="rounded-full px-4 py-2 text-sm text-ink/60 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                 >
+                  Back
+                </button>
+                {lyrics && (
                   <Button onClick={() => router.push('/create/length')}>
                     Create My Song
                   </Button>
-                </motion.div>
-              )}
+                )}
+              </motion.div>
             </>
           ))}
       </main>

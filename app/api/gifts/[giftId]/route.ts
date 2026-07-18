@@ -131,7 +131,14 @@ export async function POST(
   const song = gift.song;
   const isPaid = song.status === 'paid' || song.status === 'done';
   const tracks = song.tracks as unknown as Track[];
+  // Sender's per-gift version pick first (Keep Every Version), then the
+  // song's selected track, then any unlocked track.
+  const picked =
+    gift.trackIndex !== null && tracks[gift.trackIndex]?.unlocked
+      ? tracks[gift.trackIndex]
+      : undefined;
   const track =
+    picked ??
     tracks.find((t) => t.sunoTrackId === song.selectedTrackId && t.unlocked) ??
     tracks.find((t) => t.unlocked);
   if (!isPaid || !track) {

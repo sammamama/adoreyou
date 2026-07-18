@@ -19,7 +19,13 @@ interface Draft {
   mood: string;
   tempo: string;
   voice: string;
+  language: string;
   lyrics: string;
+  // Full generations spent (max 3, mirrors the server cap) — erasing the
+  // canvas re-arms Generate but each use burns an attempt.
+  generationsUsed: number;
+  // Last server-generated version — restore path once attempts run out.
+  generatedLyrics: string;
   revisionsUsed: number; // AI revisions spent (max 5) — direct edits are free
   verseCount: 2 | 3 | 4;
   songId: string | null;
@@ -46,7 +52,10 @@ const emptyDraft: Draft = {
   mood: '',
   tempo: '',
   voice: '',
+  language: 'English',
   lyrics: '',
+  generationsUsed: 0,
+  generatedLyrics: '',
   revisionsUsed: 0,
   verseCount: 2,
   songId: null,

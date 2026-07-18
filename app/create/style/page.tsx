@@ -131,13 +131,23 @@ export default function StylePage() {
                 />
               </motion.section>
 
-              <motion.div {...entrance(0.35)} className="mt-12 flex justify-end">
+              <motion.div
+                {...entrance(0.35)}
+                className="mt-12 flex items-center justify-between gap-4"
+              >
+                <button
+                  type="button"
+                  onClick={() => router.push(`/create/${occasion}`)}
+                  className="rounded-full px-4 py-2 text-sm text-ink/60 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                >
+                  Back
+                </button>
                 <Button
                   disabled={!genre}
-                  onClick={() => router.push('/create/lyrics')}
+                  onClick={() => router.push('/create/language')}
                   className={!genre ? 'cursor-not-allowed opacity-40' : ''}
                 >
-                  Write the lyrics
+                  Pick the language
                 </Button>
               </motion.div>
             </>

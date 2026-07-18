@@ -15,6 +15,9 @@ import { getOccasion } from '@/lib/occasions';
 
 const MAX_REVISIONS = 5;
 const RATE_LIMIT = 10;
+// Fresh full generations are the expensive call — capped separately and
+// tighter than revisions (a legit user needs 1, plus retry headroom).
+const GENERATION_LIMIT = 3;
 const WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
 // In-memory sliding window. On Vercel this is per-instance (instances are
@@ -25,6 +28,10 @@ const hits = new Map<string, number[]>();
 // Server-side revision counter (same per-instance caveat) — the client sends
 // revisionsUsed for its own UI, but the enforced count lives here.
 const revisions = new Map<string, number[]>();
+
+// Fresh-generation counter — erasing the canvas (or calling the API
+// directly) can't farm unlimited full generations.
+const generations = new Map<string, number[]>();
 
 function recentRevisions(ip: string): number[] {
   const now = Date.now();
@@ -54,6 +61,7 @@ interface LyricsRequestBody {
     answers?: { prompt: string; answer: string }[];
   };
   genre?: string;
+  language?: string;
   // Revision fields
   currentLyrics?: string;
   revisionRequest?: string;
@@ -118,6 +126,7 @@ export async function POST(req: NextRequest) {
   const input: LyricsInput = {
     occasion,
     genre,
+    language: body.language,
     promptInputs: {
       recipientName: promptInputs.recipientName,
       pronunciation: promptInputs.pronunciation,
@@ -165,6 +174,24 @@ export async function POST(req: NextRequest) {
       );
       return NextResponse.json({ data: { lyrics }, error: null });
     }
+
+    // Fresh full generation — the tighter per-IP cap applies.
+    const now = Date.now();
+    const recentGens = (generations.get(ip) ?? []).filter(
+      (t) => now - t < WINDOW_MS
+    );
+    if (recentGens.length >= GENERATION_LIMIT) {
+      generations.set(ip, recentGens);
+      return NextResponse.json(
+        {
+          data: null,
+          error:
+            'You’ve hit the generation limit — edit your lyrics directly or use a revision instead.',
+        },
+        { status: 429 }
+      );
+    }
+    generations.set(ip, [...recentGens, now]);
 
     if (body.stream) {
       return streamResponse(generateLyricsStream(input));

@@ -65,4 +65,5 @@ export interface StyleInputs {
   mood?: string;
   tempo?: string;
   voice?: string; // vocal preference, e.g. "female" / "male"
+  language?: string; // lyric language: "English" (default) / "Hindi" (Hinglish) / "Dutch"
 }

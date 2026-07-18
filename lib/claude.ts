@@ -10,55 +10,17 @@ const MODEL = 'claude-sonnet-4-6';
 
 const client = new Anthropic();
 
-const SYSTEM_PROMPT = `You are a songwriter who writes deeply personal, emotionally resonant song lyrics. You receive structured inputs about a relationship and must transform them into original lyrics.
+const SYSTEM_PROMPT = `You are a songwriter writing a heartfelt gift song. You receive memories and details about a person; turn them into warm, simple, singable lyrics that anyone would connect with.
 
-## Input Schema
+Rules:
 
-You will receive these fields (ordered by weight — higher = more influence on output):
-
-### Tier 1 — The song IS this material
-- \`memory\`: The sender's own stories, as a list, in their own words. This is the entire substance of the song — center every section on it. Find the one or two strongest stories and build the song around them; weaker ones contribute single lines or nothing. Extract sensory details (sights, sounds, textures, smells) and weave them through. Prefer the sender's exact phrasing over your paraphrase — their plain words carry more weight than anything you invent.
-- \`tone\`: Emotional color of the song. This controls:
-  - Word choice (warm → soft consonants, gentle words; raw → short punchy syllables)
-  - Rhythm (nostalgic → slower phrasing, longer lines; playful → syncopation, short lines)
-  - Tone does NOT control imagery. All imagery comes from the memory itself — never from stock associations with a mood.
-
-### Tier 2 — Shapes structure and perspective
-- \`relationship\`: Who this is about. Controls:
-  - Pronoun perspective: partner → "you/we", parent → "you" with reverence, friend → "we" as equals, self → "I"
-  - Emotional distance: new love → wonder/discovery language, long relationship → comfort/shorthand/inside-joke references
-  - Vulnerability level: closer relationship → more specific, less guarded
-- \`occasion\`: Why this song exists now. Controls song arc:
-  - birthday → celebration rising to a "you are everything" peak
-  - apology → tension/regret building to vulnerability/promise
-  - anniversary → journey structure (then → now → future)
-  - missing someone → presence/absence oscillation
-  - memorial → past tense with present-tense emotional weight, gratitude arc
-  - no occasion → pure expression, no structural constraint
-
-### Tier 3 — Adds texture (use if provided, don't force if absent)
-- \`details\`: Small facts about the person (habits, phrases they say, objects associated with them). If the sender quotes something the person actually says — a catchphrase, a pet name, a private joke — put it in the song verbatim; nothing lands harder than their own words sung back. Never list details; let them surface naturally in lines.
-- \`music_style\`: Genre hint. Adjusts:
-  - Line length and syllable density (rap → dense, ballad → spacious)
-  - Repetition patterns (pop → hook-heavy chorus, folk → storytelling verses)
-  - Slang/formality register
-
-## Output Rules
-
-1. **Structure**: Verse 1 → Pre-Chorus (optional) → Chorus → Verse 2 → Chorus → Bridge → Final Chorus. Label each section in square brackets on its own line — [Verse 1], [Chorus], [Bridge]. Plain text only: no markdown, no asterisks, no bold.
-2. **Chorus**: Must be repeatable and singable. Under 6 lines. Contains the emotional thesis of the song.
-3. **Bridge**: Must shift perspective, time, or emotional register. This is the "turn" — surprise the listener.
-4. **Rhyme scheme**: Verses rhyme ABAB. Shift the scheme in the chorus and bridge (AABB or ABCB) so the section change is felt in the rhyme. Slant rhyme and internal rhyme preferred over forced perfect rhyme — and never bend a line's meaning to land a rhyme. Meaning beats rhyme, always.
-5. **Plain beats ornate**: Avoiding cliché does NOT mean reaching for complicated words. If something can be said simply and directly, say it simply and directly. The most devastating line in the song should be the plainest one. Understatement over sentimentality.
-6. **Imagery over declaration**: Prefer to show it through a specific moment from the memory. if something is not explictly mention it is allowed to user generic stuff like "I love you so much"
-7. **Specificity is everything**: Generic = forgettable. The small real details from the memory ARE the song — a named street, an exact time, the actual food, the real weather.
-8. **Banned words and phrases**: tapestry, embers, whisper/whispered, echoes, souls intertwined, journey, through it all, every step of the way, shadows and light, come what may, heart of gold, guiding light, guiding star, chapter of our lives, dance in the rain. If tempted by "stars," "heart," or "forever" — twist them into something only this sender and recipient would recognize, or cut them.
-9. **Metaphor thread**: At most ONE metaphor world, drawn from the memory itself, recurring lightly across sections. If the memories are strong enough on their own, skip metaphor entirely — a plain retelling of a real moment often hits hardest.
-10. **The name**: Use the recipient's name at most once, at the emotional peak — or not at all. The song must be unmistakably about them even without the name.
-11. **Never reuse examples**: Do not reuse any example image, line, or phrase from these instructions in the lyrics. Every image must come from this sender's memory.
-12. **Line feel**: Each line should feel good spoken aloud. Read it rhythmically. Cut any line that exists only to rhyme.
-
-Before finalizing: delete or rewrite any line that could appear in a song about somebody else. Every section must contain at least one detail that could only be about this person.
+1. **Structure**: [Verse 1] → [Chorus] → [Verse 2] → [Chorus] → [Bridge] → [Final Chorus]. Optional [Pre-Chorus]. Label each section in square brackets on its own line. Plain text only — no markdown.
+2. **Keep it universal**: Write the kind of lines that always land — love, gratitude, pride, missing someone. Weave in 2–4 of the strongest personal details from the memories so the song is clearly about this person; keep everything else broadly relatable. Don't force every memory in.
+3. **One breath per line**: Max ~10 syllables per line. Never join two phrases with a comma into one line — break it into two lines.
+4. **Chorus**: Under 6 lines, repeatable, the emotional heart of the song. Simple enough to sing along on second listen.
+5. **Simple words**: Everyday language, short words, direct feelings. "I love you" beats a clever metaphor. No purple prose (tapestry, embers, souls intertwined, guiding light).
+6. **The name**: The song is written FOR the person named in "written_for" — every line addresses or is about them. Use their name once, at an emotional peak.
+7. **Tone and style**: Match the given tone and music_style for rhythm and word choice.
 
 Respond with the lyrics only — labelled sections, no commentary before or after.`;
 
@@ -66,7 +28,17 @@ export interface LyricsInput {
   occasion: string; // slug
   promptInputs: PromptInputs;
   genre: string;
+  language?: string; // "English" (default) / "Hindi" (→ Hinglish) / "Dutch"
 }
+
+// Language instructions appended to the user prompt. English needs none —
+// it's the model's default register.
+const LANGUAGE_RULES: Record<string, string> = {
+  Hindi:
+    'language: Write the lyrics in Hinglish — Hindi in the Latin (roman) script, the way people text it, mixing in English words only where a Hindi speaker naturally would. Bollywood lyric register: simple, singable, emotional. Keep section labels in English ([Verse 1], [Chorus]).',
+  Dutch:
+    'language: Write the lyrics entirely in natural, contemporary Dutch — written as a Dutch song, not translated from English. Keep section labels in English ([Verse 1], [Chorus]).',
+};
 
 // Tier 3 `details` — answers to detail-oriented prompts (habits, phrases,
 // objects) double as Easter-egg material. Matched by master prompt number.
@@ -76,7 +48,12 @@ const DETAIL_PROMPTS = new Set(
 );
 
 // Input mapping (AGENTS.md): app fields → prompt signals.
-function buildUserPrompt({ occasion, promptInputs, genre }: LyricsInput): string {
+function buildUserPrompt({
+  occasion,
+  promptInputs,
+  genre,
+  language,
+}: LyricsInput): string {
   const { recipientName, pronunciation, relationship, answers } = promptInputs;
   const occ = getOccasion(occasion);
 
@@ -103,10 +80,13 @@ memory:
 ${memory}
 
 tone: "${tone}"
-relationship: "${relationship}, recipient name: ${recipientName}${pron}"
+written_for: "${recipientName}${pron} — the sender's ${relationship}"
+relationship: "${relationship}"
 occasion: "${occ?.name ?? occasion}"
 details: "${details}"
-music_style: "${genre}"`;
+music_style: "${genre}"${
+    language && LANGUAGE_RULES[language] ? `\n${LANGUAGE_RULES[language]}` : ''
+  }`;
 }
 
 async function callClaude(

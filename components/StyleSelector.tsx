@@ -40,6 +40,10 @@ export const MOODS = [
 
 export const TEMPOS = ['Slow', 'Steady', 'Upbeat'] as const;
 
+// Lyric language for the /create/language step. "Hindi" produces Hinglish —
+// romanized Hindi lyrics, the way people actually text.
+export const LANGUAGES = ['English', 'Hindi', 'Dutch'] as const;
+
 export const VOICES = ['Female', 'Male'] as const;
 
 // One row of selectable chips. Optional groups deselect on second click.

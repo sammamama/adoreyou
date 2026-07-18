@@ -88,6 +88,11 @@ function layout(content: string): string {
     <td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 560px;">
         <tr>
+          <td align="center" style="padding-bottom: 24px;">
+            <img src="${appUrl()}/logo-mark.png" alt="AdoreYou" width="40" height="40" style="display: block; border-radius: 10px;" />
+          </td>
+        </tr>
+        <tr>
           <td style="background-color: #ffffff; border-radius: 24px; padding: 48px 40px; color: #1C1917;">
             ${content}
           </td>
@@ -176,21 +181,25 @@ export async function sendGiftDeliveryEmail(opts: {
   senderName: string;
   giftId: string;
   accessCode: string;
-  personalMessage: string;
+  personalMessage: string | null;
   occasion: string; // slug
 }) {
   const accent = accentFor(opts.occasion);
   const giftLink = `${appUrl()}/gift/${opts.giftId}`;
   const sender = escapeHtml(opts.senderName);
 
+  const quoteBlock = opts.personalMessage
+    ? `<div style="border-left: 3px solid ${accent}; padding: 4px 0 4px 20px; margin: 24px 0;">
+      <p style="font-family: ${SERIF}; font-style: italic; font-size: 20px; line-height: 1.5; color: #1C1917; margin: 0;">&ldquo;${escapeHtml(opts.personalMessage)}&rdquo;</p>
+      <p style="font-family: ${SANS}; font-size: 14px; color: #a8a29e; margin: 8px 0 0;">— ${sender}</p>
+    </div>`
+    : '';
+
   const html = layout(`
     ${eyebrow('You have a gift', accent)}
     ${heading(`${sender} made you a <em style="font-style: italic;">song</em>`)}
     ${paragraph('They really appreciate you — so much that they wrote it into music.')}
-    <div style="border-left: 3px solid ${accent}; padding: 4px 0 4px 20px; margin: 24px 0;">
-      <p style="font-family: ${SERIF}; font-style: italic; font-size: 20px; line-height: 1.5; color: #1C1917; margin: 0;">&ldquo;${escapeHtml(opts.personalMessage)}&rdquo;</p>
-      <p style="font-family: ${SANS}; font-size: 14px; color: #a8a29e; margin: 8px 0 0;">— ${sender}</p>
-    </div>
+    ${quoteBlock}
     <div style="margin: 28px 0;">${button(giftLink, 'Open your gift', accent)}</div>
     <div style="margin: 24px 0;">${codeBlock(opts.accessCode, 'Your access code')}</div>
     ${paragraph(`Open <a href="${giftLink}" style="color: ${accent};">${giftLink}</a> and enter the code above to hear your song.`)}
@@ -199,9 +208,9 @@ export async function sendGiftDeliveryEmail(opts: {
   const text = [
     `${opts.senderName} made you a song — they really appreciate you.`,
     ``,
-    `"${opts.personalMessage}"`,
-    `— ${opts.senderName}`,
-    ``,
+    ...(opts.personalMessage
+      ? [`"${opts.personalMessage}"`, `— ${opts.senderName}`, ``]
+      : []),
     `Open your gift: ${giftLink}`,
     `Access code: ${opts.accessCode}`,
   ].join('\n');

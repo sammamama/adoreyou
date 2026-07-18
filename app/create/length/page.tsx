@@ -49,6 +49,7 @@ export default function LengthPage() {
   const mood = useDraftStore((s) => s.mood);
   const tempo = useDraftStore((s) => s.tempo);
   const voice = useDraftStore((s) => s.voice);
+  const language = useDraftStore((s) => s.language);
   const lyrics = useDraftStore((s) => s.lyrics);
   const verseCount = useDraftStore((s) => s.verseCount);
   const update = useDraftStore((s) => s.update);
@@ -82,6 +83,7 @@ export default function LengthPage() {
   const requestBase = {
     occasion,
     genre,
+    language,
     promptInputs: {
       recipientName,
       pronunciation,
@@ -132,6 +134,7 @@ export default function LengthPage() {
             ...(mood ? { mood: mood.toLowerCase() } : {}),
             ...(tempo ? { tempo: tempo.toLowerCase() } : {}),
             ...(voice ? { voice: voice.toLowerCase() } : {}),
+            ...(language ? { language } : {}),
           },
           lyrics: finalLyrics,
           verseCount: verses,
@@ -249,8 +252,16 @@ export default function LengthPage() {
 
               <motion.div
                 {...entrance(0.14)}
-                className="mt-12 flex items-center justify-end gap-4"
+                className="mt-12 flex items-center justify-between gap-4"
               >
+                <button
+                  type="button"
+                  onClick={() => router.push('/create/lyrics')}
+                  className="rounded-full px-4 py-2 text-sm text-ink/60 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                >
+                  Back
+                </button>
+                <div className="flex items-center gap-4">
                 {verseCount !== 2 && (
                   <Button
                     variant="ghost"
@@ -276,6 +287,7 @@ export default function LengthPage() {
                         ? 'Extend my song'
                         : 'Create my song'}
                 </Button>
+                </div>
               </motion.div>
             </>
           ))}

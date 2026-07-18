@@ -1,11 +1,11 @@
-// 15-second preview proxy for pre-payment listening.
+// 30-second preview proxy for pre-payment listening.
 //
 // APPROACH (documented per decision #9): byte-range proxy clipping. We fetch
-// the first ~240KB of the Suno MP3 (≈15s at Suno's ~128kbps CBR) via a Range
+// the first ~480KB of the Suno MP3 (≈30s at Suno's ~128kbps CBR) via a Range
 // request and stream that to the client as audio/mpeg. Browsers decode
 // truncated MP3s cleanly — playback simply stops at the cut.
 //
-// Why this over real clipping: server-side transcode (ffmpeg) for exact 15s
+// Why this over real clipping: server-side transcode (ffmpeg) for exact 30s
 // cuts, bitrate reduction, and audio watermarking doesn't fit Vercel's
 // serverless runtime without a native binary layer. Byte-range clipping is
 // zero-dependency, streams within function limits, and — the actual security
@@ -18,8 +18,8 @@ import { prisma } from '@/lib/db';
 import { openObject } from '@/lib/storage';
 import type { Track } from '@/types';
 
-// ~15s of 128kbps MP3 (16KB/s * 15).
-const PREVIEW_BYTES = 240_000;
+// ~30s of 128kbps MP3 (16KB/s * 30).
+const PREVIEW_BYTES = 480_000;
 
 export async function GET(
   _req: NextRequest,

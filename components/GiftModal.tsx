@@ -114,6 +114,12 @@ export function GiftShareBox({
 const inputClasses =
   'w-full rounded-xl border border-ink/15 bg-white px-4 py-3 text-base outline-none transition-colors duration-200 placeholder:text-ink/30 focus:border-accent';
 
+export type GiftableTrack = {
+  index: number;
+  label: string; // e.g. "Version 1 — Pop"
+  selected: boolean; // the song's chosen final track
+};
+
 export default function GiftModal({
   songId,
   recipientName,
@@ -122,6 +128,7 @@ export default function GiftModal({
   onClose,
   onCreated,
   showPacks = false,
+  tracks,
 }: {
   songId: string;
   recipientName: string;
@@ -130,12 +137,18 @@ export default function GiftModal({
   onClose: () => void;
   onCreated: () => void;
   showPacks?: boolean; // open straight to the gift-pack screen
+  // Unlocked versions (Keep Every Version) — a picker shows when there's a
+  // real choice; omitted/single = the gift plays the song's selected track.
+  tracks?: GiftableTrack[];
 }) {
   const reduced = useReducedMotion();
 
   const [senderName, setSenderName] = useState(() => savedSenderName());
   const [personalMessage, setPersonalMessage] = useState('');
   const [recipientEmail, setRecipientEmail] = useState('');
+  const [trackIndex, setTrackIndex] = useState<number | null>(
+    () => tracks?.find((t) => t.selected)?.index ?? null
+  );
 
   // Delivery moment — now, or a scheduled unwrap (email + page unlock).
   const [deliverMode, setDeliverMode] = useState<'now' | 'schedule'>('now');
@@ -239,6 +252,9 @@ export default function GiftModal({
       form.set('senderName', senderName);
       form.set('personalMessage', personalMessage);
       form.set('recipientEmail', recipientEmail);
+      if (tracks && tracks.length > 1 && trackIndex !== null) {
+        form.set('trackIndex', String(trackIndex));
+      }
       if (deliverMode === 'schedule' && deliverAt) {
         form.set('deliverAt', new Date(deliverAt).toISOString());
       }
@@ -300,7 +316,6 @@ export default function GiftModal({
 
   const canSubmit =
     senderName.trim() &&
-    personalMessage.trim() &&
     recipientEmail.trim() &&
     scheduleValid &&
     !submitting;
@@ -443,9 +458,35 @@ export default function GiftModal({
                     />
                   </div>
 
+                  {tracks && tracks.length > 1 && (
+                    <div>
+                      <p className="mb-1.5 text-sm font-medium">
+                        Which version should they hear?
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {tracks.map((t) => (
+                          <button
+                            key={t.index}
+                            type="button"
+                            onClick={() => setTrackIndex(t.index)}
+                            aria-pressed={trackIndex === t.index}
+                            className={`rounded-full border px-4 py-2 text-sm transition-colors duration-200 ${
+                              trackIndex === t.index
+                                ? 'border-accent bg-accent text-white'
+                                : 'border-ink/15 bg-white hover:border-ink/40'
+                            }`}
+                          >
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <label className="mb-1.5 block text-sm font-medium" htmlFor="gift-message">
-                      Personal message
+                      Personal message{' '}
+                      <span className="font-normal text-ink/40">(optional)</span>
                     </label>
                     <textarea
                       id="gift-message"

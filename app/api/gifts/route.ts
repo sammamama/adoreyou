@@ -16,6 +16,7 @@ import { generateAccessCode } from '@/lib/access-code';
 import { sendGiftDeliveryEmail, sendGiftSentEmail } from '@/lib/email';
 import { putObject, storageConfigured } from '@/lib/storage';
 import { randomUUID } from 'crypto';
+import type { Track } from '@/types';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_PHOTO_BYTES = 3 * 1024 * 1024; // Vercel body limit is 4.5MB total
@@ -45,15 +46,15 @@ export async function POST(req: NextRequest) {
 
   const songId = field(form, 'songId');
   const senderName = field(form, 'senderName');
-  const personalMessage = field(form, 'personalMessage');
+  // Optional — the reveal page and delivery email skip the quote when absent.
+  const personalMessage = field(form, 'personalMessage') ?? null;
   const recipientEmail = field(form, 'recipientEmail')?.toLowerCase();
 
-  if (!songId || !senderName || !personalMessage || !recipientEmail) {
+  if (!songId || !senderName || !recipientEmail) {
     return NextResponse.json(
       {
         data: null,
-        error:
-          'songId, your name, a personal message, and their email are required.',
+        error: 'songId, your name, and their email are required.',
       },
       { status: 400 }
     );
@@ -149,6 +150,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Optional track pick (Keep Every Version) — must be an unlocked track.
+  // null = the song's selected track, resolved at reveal time.
+  const trackIndexRaw = field(form, 'trackIndex');
+  let trackIndex: number | null = null;
+  if (trackIndexRaw !== undefined) {
+    const idx = Number(trackIndexRaw);
+    const tracks = song.tracks as unknown as Track[];
+    if (!Number.isInteger(idx) || !tracks[idx]?.unlocked) {
+      return NextResponse.json(
+        { data: null, error: 'That song version isn’t available to gift.' },
+        { status: 400 }
+      );
+    }
+    trackIndex = idx;
+  }
+
   const creditsRemaining = song.giftCredits - song.gifts.length;
   if (creditsRemaining <= 0) {
     return NextResponse.json(
@@ -210,6 +227,7 @@ export async function POST(req: NextRequest) {
             songId: song.id,
             senderName,
             personalMessage,
+            trackIndex,
             recipientEmail,
             accessCode: generateAccessCode(gifts.map((g) => g.accessCode)),
             deliverAt,

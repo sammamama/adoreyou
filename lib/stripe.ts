@@ -44,6 +44,7 @@ export interface SongCheckoutInput {
   verseCount: 2 | 3 | 4;
   keepEveryVersion: boolean;
   regenGenre?: string;
+  selectedTrackIndex: number;
 }
 
 // One Stripe Checkout session for the song: base + selected upsells as
@@ -55,6 +56,7 @@ export async function createSongCheckoutSession({
   verseCount,
   keepEveryVersion,
   regenGenre,
+  selectedTrackIndex,
 }: SongCheckoutInput): Promise<Stripe.Checkout.Session> {
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
     {
@@ -113,7 +115,9 @@ export async function createSongCheckoutSession({
     adaptive_pricing: { enabled: true },
     metadata: { type: 'song', songId },
     success_url: `${appUrl()}/song/${songId}?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${appUrl()}/create/checkout?canceled=1`,
+    // songId + track ride along so the checkout page can restore the order
+    // even if the local draft was lost or clobbered while the user was away.
+    cancel_url: `${appUrl()}/create/checkout?canceled=1&songId=${songId}&track=${selectedTrackIndex}`,
   });
 }
 

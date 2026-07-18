@@ -73,7 +73,7 @@ function PauseIcon() {
 }
 
 // Final pick after the regen pair lands — all versions playable (full audio
-// where unlocked, 15s previews otherwise), pick one, confirm via PATCH.
+// where unlocked, 30s previews otherwise), pick one, confirm via PATCH.
 function FinalPick({
   song,
   onPicked,
@@ -189,7 +189,7 @@ function FinalPick({
                     </span>
                   </div>
                   <p className="mt-1.5 text-xs text-ink/40">
-                    {track.audioUrl ? 'Full song' : '15-second preview'}
+                    {track.audioUrl ? 'Full song' : '30-second preview'}
                   </p>
                 </div>
 
@@ -571,6 +571,13 @@ function SongPageInner() {
                     songId={song.id}
                     recipientName={song.recipientName}
                     giftCredits={song.giftCredits ?? 0}
+                    tracks={song.tracks
+                      .filter((t) => t.audioUrl)
+                      .map((t) => ({
+                        index: t.index,
+                        label: `Version ${t.index + 1} — ${t.genre}`,
+                        selected: t.index === song.selectedTrackIndex,
+                      }))}
                     open={giftOpen || buyPacksOpen}
                     showPacks={buyPacksOpen}
                     onClose={() => {

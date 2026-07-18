@@ -1,10 +1,11 @@
 'use client';
 
-// Step 6 ready state — 15s preview players for both versions, pick the
+// Step 6 ready state — 30s preview players for both versions, pick the
 // favorite (required), plus the two preview upsells (decision #14):
 // Keep Every Version +$5.99, Regenerate in New Genre +$12.99.
 
 import { motion, useReducedMotion } from 'motion/react';
+import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { GENRES } from '@/components/StyleSelector';
 import Button from '@/components/ui/Button';
@@ -143,7 +144,7 @@ export default function PreviewPicker({
                       style={{ width: `${pct * 100}%` }}
                     />
                   </div>
-                  <p className="mt-1.5 text-xs text-ink/40">15-second preview</p>
+                  <p className="mt-1.5 text-xs text-ink/40">30-second preview</p>
                 </div>
 
                 <div
@@ -180,7 +181,7 @@ export default function PreviewPicker({
                   const el = e.currentTarget;
                   const duration = Number.isFinite(el.duration)
                     ? el.duration
-                    : 15;
+                    : 30;
                   setProgress((prev) => ({
                     ...prev,
                     [track.index]: Math.min(el.currentTime / duration, 1),
@@ -303,8 +304,15 @@ export default function PreviewPicker({
       {/* Continue */}
       <motion.div
         {...entrance(0.14)}
-        className="mt-12 flex items-center justify-end gap-4"
+        className="mt-12 flex items-center justify-between gap-4"
       >
+        <Link
+          href="/create/length"
+          className="rounded-full px-4 py-2 text-sm text-ink/60 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          Back
+        </Link>
+        <div className="flex items-center gap-4">
         {selectedTrackId === null && (
           <p className="text-sm text-ink/40">Pick your favorite to continue</p>
         )}
@@ -320,6 +328,7 @@ export default function PreviewPicker({
         >
           Continue
         </Button>
+        </div>
       </motion.div>
     </div>
   );

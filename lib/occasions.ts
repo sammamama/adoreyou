@@ -26,6 +26,47 @@ export const MASTER_PROMPTS: readonly string[] = [
   /* 18 */ "If they had a catchphrase, it'd be...",
 ];
 
+// Example answers shown as textarea placeholders — two short phrases per
+// prompt so people know what kind of thing to write. Keyed by prompt text.
+export const PROMPT_PLACEHOLDERS: Record<string, string> = {
+  [MASTER_PROMPTS[0]]:
+    'e.g. "her dance move at the wedding" or "his terrible impression of grandpa"',
+  [MASTER_PROMPTS[1]]:
+    'e.g. "he cries at dog movies" or "she still keeps my old drawings"',
+  [MASTER_PROMPTS[2]]:
+    'e.g. "drove 2 hours for the right biryani" or "labels everything in the fridge"',
+  [MASTER_PROMPTS[3]]:
+    'e.g. "texts me when my flight lands" or "always saves me the last bite"',
+  [MASTER_PROMPTS[4]]:
+    'e.g. "how she checks on everyone quietly" or "he brags about me to his friends"',
+  [MASTER_PROMPTS[5]]:
+    'e.g. "the GPS incident of 2021" or "why we can\'t order pizza anymore"',
+  [MASTER_PROMPTS[6]]:
+    'e.g. "waited outside my exam hall for hours" or "learned to cook my favorite dish"',
+  [MASTER_PROMPTS[7]]:
+    'e.g. "the rooftop talk at midnight" or "singing in the car in the rain"',
+  [MASTER_PROMPTS[8]]:
+    'e.g. "patience with difficult people" or "how to laugh at myself"',
+  [MASTER_PROMPTS[9]]:
+    'e.g. "louder and sillier" or "calm, like nothing can go wrong"',
+  [MASTER_PROMPTS[10]]:
+    'e.g. "narrates every movie we watch" or "hums the same song while cooking"',
+  [MASTER_PROMPTS[11]]:
+    'e.g. "text me when you reach" or "same time next week?"',
+  [MASTER_PROMPTS[12]]:
+    'e.g. "their garden" or "that 2019 trip to the mountains"',
+  [MASTER_PROMPTS[13]]:
+    'e.g. "calling me out of nowhere" or "dancing in the kitchen"',
+  [MASTER_PROMPTS[14]]:
+    'e.g. "you were right about everything" or "I\'m okay because of you"',
+  [MASTER_PROMPTS[15]]:
+    'e.g. "filter coffee at dawn" or "the smell of rain on the porch"',
+  [MASTER_PROMPTS[16]]:
+    'e.g. "the karaoke night" or "crying at my graduation"',
+  [MASTER_PROMPTS[17]]:
+    'e.g. "sab theek ho jayega" or "we\'ll figure it out"',
+};
+
 // 1-based prompt numbers from MASTER_PROMPTS, 10 per occasion.
 const PROMPT_CURATION: Record<OccasionSlug, number[]> = {
   birthday: [1, 2, 3, 6, 8, 11, 13, 14, 17, 18],
